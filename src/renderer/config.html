@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dorganize - Configuration</title>
+    <link rel="stylesheet" href="config.css">
+    <style>
+        /* Custom title bar styles */
+        .custom-title-bar {
+            height: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 15px;
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            -webkit-app-region: drag;
+            user-select: none;
+        }
+        
+        .title-bar-controls {
+            display: flex;
+            gap: 8px;
+            -webkit-app-region: no-drag;
+        }
+        
+        .title-bar-button {
+            width: 20px;
+            height: 20px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            transition: all 0.2s ease;
+        }
+        
+        .title-bar-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .title-bar-close {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .title-bar-close:hover {
+            background: #c0392b;
+        }
+        
+        .shortcuts-status {
+            position: fixed;
+            top: 40px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .shortcuts-status.show {
+            opacity: 1;
+        }
+        
+        .shortcuts-status.enabled {
+            background: rgba(39, 174, 96, 0.9);
+        }
+        
+        .shortcuts-status.disabled {
+            background: rgba(231, 76, 60, 0.9);
+        }
+    </style>
+</head>
+<body>
+    <!-- Custom title bar -->
+    <div class="custom-title-bar">
+        <span>Dorganize</span>
+        <div class="title-bar-controls">
+            <button class="title-bar-button title-bar-close" onclick="window.close()">×</button>
+        </div>
+    </div>
+    
+    <!-- Shortcuts status indicator -->
+    <div id="shortcuts-status" class="shortcuts-status">
+        <span id="shortcuts-status-text">Shortcuts: Enabled</span>
+    </div>
+
+    <div class="container">
+        <header class="header">
+            <div class="header-controls">
+                <button id="refresh-btn" class="btn btn-primary" title="Refresh windows">
+                    <img src="../../assets/icons/refresh.png" alt="Refresh" onerror="this.style.display='none'">
+                    <span>Refresh</span>
+                </button>
+                <button id="language-btn" class="btn btn-secondary" title="Change language">
+                    <img src="../../assets/icons/language.png" alt="Language" onerror="this.style.display='none'">
+                    <span>Language</span>
+                </button>
+                <button id="organize-btn" class="btn btn-secondary" title="Organize windows">
+                    <img src="../../assets/icons/organize.png" alt="Organize" onerror="this.style.display='none'">
+                    <span>Organize</span>
+                </button>
+                <button id="global-shortcuts-btn" class="btn btn-secondary" title="Configure Global Shortcuts">
+                    <span>Global Shortcuts</span>
+                </button>
+                <button id="next-window-btn" class="btn btn-secondary" title="Next Window">
+                    <span>Next Window</span>
+                </button>
+                <button id="toggle-shortcuts-btn" class="btn btn-secondary" title="Toggle Shortcuts">
+                    <span id="toggle-shortcuts-text">Disable Shortcuts</span>
+                </button>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div id="no-windows" class="no-windows" style="display: none;">
+                <div class="no-windows-icon">🎮</div>
+                <h3>No Dofus Windows Detected</h3>
+                <p id="no-windows-text">No Dofus windows detected. Make sure Dofus is running and click Refresh to scan for windows.</p>
+                <button class="btn btn-primary" onclick="configRenderer.refreshWindows()">
+                    <span>🔄 Refresh Now</span>
+                </button>
+            </div>
+
+            <div id="windows-list" class="windows-list">
+                <!-- Windows will be populated here -->
+            </div>
+        </main>
+
+        <footer class="footer">
+            <div class="footer-content">
+                <div class="dock-settings">
+                    <label class="dock-toggle">
+                        <input type="checkbox" id="dock-enabled"> 
+                        <span class="toggle-slider"></span>
+                        <span id="dock-label">Enable navigation dock</span>
+                    </label>
+                    
+                    <div class="dock-position-group">
+                        <label for="dock-position">Position:</label>
+                        <select id="dock-position" class="dock-position-select">
+                            <option value="NW">Top Left</option>
+                            <option value="NE">Top Right</option>
+                            <option value="SW">Bottom Left</option>
+                            <option value="SE" selected>Bottom Right</option>
+                            <option value="N">Top (Horizontal)</option>
+                            <option value="S">Bottom (Horizontal)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="footer-stats">
+                    <span id="window-count">0 windows detected</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Shortcut capture modal -->
+    <div id="shortcut-modal" class="modal" style="display: none;" tabindex="-1">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="shortcut-title">Set Keyboard Shortcut</h3>
+                <button class="modal-close" onclick="configRenderer.closeShortcutModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <p id="shortcut-instruction">Press any key or key combination:</p>
+                <div id="shortcut-display" class="shortcut-display-modal">Press any key or combination...</div>
+                <div class="shortcut-examples">
+                    <p><strong>Examples:</strong></p>
+                    <p>
+                        <code>A</code> <code>F1</code> <code>Space</code> <code>Ctrl+1</code> 
+                        <code>Alt+F1</code> <code>Shift+Q</code> <code>Ctrl+Alt+S</code>
+                        <code>;</code> <code>=</code> <code>,</code> <code>.</code> <code>/</code>
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="shortcut-save" class="btn btn-primary">Save Shortcut</button>
+                <button id="shortcut-cancel" class="btn btn-secondary">Cancel</button>
+                <button id="shortcut-remove" class="btn btn-danger">Remove Shortcut</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Shortcuts Modal -->
+    <div id="global-shortcuts-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Configure Global Shortcuts</h3>
+                <button class="modal-close" onclick="configRenderer.closeGlobalShortcutsModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <p>Configure global shortcuts that work system-wide:</p>
+                
+                <div class="global-shortcut-item">
+                    <div class="global-shortcut-label">
+                        <h4>Next Window</h4>
+                        <p>Cycle to the next Dofus window (by initiative order)</p>
+                    </div>
+                    <div class="global-shortcut-controls">
+                        <div id="next-window-shortcut-display" class="shortcut-display" onclick="configRenderer.setGlobalShortcut('nextWindow')">
+                            Ctrl+Tab
+                        </div>
+                        <button class="btn btn-danger btn-small" onclick="configRenderer.removeGlobalShortcut('nextWindow')" title="Remove shortcut">×</button>
+                    </div>
+                </div>
+                
+                <div class="global-shortcut-item">
+                    <div class="global-shortcut-label">
+                        <h4>Toggle Shortcuts</h4>
+                        <p>Enable or disable all shortcuts</p>
+                    </div>
+                    <div class="global-shortcut-controls">
+                        <div id="toggle-shortcuts-shortcut-display" class="shortcut-display" onclick="configRenderer.setGlobalShortcut('toggleShortcuts')">
+                            Ctrl+Shift+D
+                        </div>
+                        <button class="btn btn-danger btn-small" onclick="configRenderer.removeGlobalShortcut('toggleShortcuts')" title="Remove shortcut">×</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="configRenderer.closeGlobalShortcutsModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Language selection modal -->
+    <div id="language-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Select Language</h3>
+                <button class="modal-close" onclick="document.getElementById('language-modal').style.display='none'">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="language-options">
+                    <label class="language-option">
+                        <input type="radio" name="language" value="FR" checked>
+                        <div class="option-content">
+                            <div class="option-flag">🇫🇷</div>
+                            <span>Français</span>
+                        </div>
+                    </label>
+                    
+                    <label class="language-option">
+                        <input type="radio" name="language" value="EN">
+                        <div class="option-content">
+                            <div class="option-flag">🇬🇧</div>
+                            <span>English</span>
+                        </div>
+                    </label>
+                    
+                    <label class="language-option">
+                        <input type="radio" name="language" value="DE">
+                        <div class="option-content">
+                            <div class="option-flag">🇩🇪</div>
+                            <span>Deutsch</span>
+                        </div>
+                    </label>
+                    
+                    <label class="language-option">
+                        <input type="radio" name="language" value="ES">
+                        <div class="option-content">
+                            <div class="option-flag">🇪🇸</div>
+                            <span>Español</span>
+                        </div>
+                    </label>
+                    
+                    <label class="language-option">
+                        <input type="radio" name="language" value="IT">
+                        <div class="option-content">
+                            <div class="option-flag">🇮🇹</div>
+                            <span>Italiano</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="language-save" class="btn btn-primary">Apply Language</button>
+                <button id="language-cancel" class="btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Window organization modal -->
+    <div id="organize-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Organize Windows</h3>
+                <button class="modal-close" onclick="document.getElementById('organize-modal').style.display='none'">×</button>
+            </div>
+            <div class="modal-body">
+                <p>Choose how to arrange your Dofus windows:</p>
+                <div class="organize-options">
+                    <button class="organize-option" onclick="configRenderer.organizeWindows('grid')">
+                        <div class="organize-icon">⊞</div>
+                        <h4>Grid Layout</h4>
+                        <p>Arrange in a grid pattern</p>
+                    </button>
+                    
+                    <button class="organize-option" onclick="configRenderer.organizeWindows('horizontal')">
+                        <div class="organize-icon">⊟</div>
+                        <h4>Horizontal</h4>
+                        <p>Side by side arrangement</p>
+                    </button>
+                    
+                    <button class="organize-option" onclick="configRenderer.organizeWindows('vertical')">
+                        <div class="organize-icon">⊢</div>
+                        <h4>Vertical</h4>
+                        <p>Stack windows vertically</p>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="document.getElementById('organize-modal').style.display='none'">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Class selection modal -->
+    <div id="class-modal" class="modal" style="display: none;">
+        <div class="modal-content class-modal-content">
+            <div class="modal-header">
+                <h3>Select Character Class</h3>
+                <button class="modal-close" onclick="configRenderer.closeClassModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <p>Choose the character class for this window:</p>
+                <div id="class-grid" class="class-grid">
+                    <!-- Class options will be populated here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="class-cancel" class="btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+</body>
+</html>
