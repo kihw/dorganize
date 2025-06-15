@@ -5,9 +5,15 @@ class ShortcutManager {
     this.shortcuts = new Map();
     this.active = false;
     this.registeredAccelerators = new Set();
+    this.priority = {
+      AUTO_KEY: 3,
+      GLOBAL: 2,
+      WINDOW: 1
+    };
+    this.shortcutPriorities = new Map(); // Track shortcut priorities
   }
 
-  setWindowShortcut(windowId, shortcut, callback) {
+  setWindowShortcut(windowId, shortcut, callback, priority = this.priority.WINDOW) {
     // Remove existing shortcut for this window
     this.removeWindowShortcut(windowId);
     
@@ -16,15 +22,21 @@ class ShortcutManager {
     try {
       const accelerator = this.convertShortcutToAccelerator(shortcut);
       
-      // Check if accelerator is already registered
-      if (this.registeredAccelerators.has(accelerator)) {
-        console.warn(`Shortcut ${accelerator} is already registered`);
+      // Check if accelerator is already registered with higher priority
+      const existingPriority = this.shortcutPriorities.get(accelerator);
+      if (existingPriority && existingPriority > priority) {
+        console.warn(`Shortcut ${accelerator} is already registered with higher priority (${existingPriority} > ${priority})`);
         return false;
+      }
+      
+      // If existing shortcut has lower priority, unregister it first
+      if (existingPriority && existingPriority < priority) {
+        this.unregisterShortcutByAccelerator(accelerator);
       }
       
       const success = globalShortcut.register(accelerator, () => {
         try {
-          console.log(`ShortcutManager: Executing shortcut ${accelerator} for window ${windowId}`);
+          console.log(`ShortcutManager: Executing shortcut ${accelerator} for window ${windowId} (priority: ${priority})`);
           callback();
         } catch (error) {
           console.error('Error executing shortcut callback:', error);
@@ -35,15 +47,17 @@ class ShortcutManager {
         this.shortcuts.set(windowId, {
           accelerator,
           callback,
-          original: shortcut
+          original: shortcut,
+          priority
         });
         
         this.registeredAccelerators.add(accelerator);
+        this.shortcutPriorities.set(accelerator, priority);
         
-        console.log(`ShortcutManager: Successfully registered shortcut ${accelerator} for window ${windowId}`);
+        console.log(`ShortcutManager: Successfully registered shortcut ${accelerator} for window ${windowId} with priority ${priority}`);
         return true;
       } else {
-        console.warn(`Failed to register shortcut: ${accelerator}`);
+        console.warn(`Failed to register shortcut: ${accelerator} (may be in use by system)`);
       }
     } catch (error) {
       console.error('Error setting shortcut:', error);
@@ -58,6 +72,7 @@ class ShortcutManager {
       try {
         globalShortcut.unregister(shortcutInfo.accelerator);
         this.registeredAccelerators.delete(shortcutInfo.accelerator);
+        this.shortcutPriorities.delete(shortcutInfo.accelerator);
         this.shortcuts.delete(windowId);
         
         console.log(`ShortcutManager: Removed shortcut ${shortcutInfo.accelerator} for window ${windowId}`);
@@ -67,6 +82,28 @@ class ShortcutManager {
       }
     }
     return false;
+  }
+
+  unregisterShortcutByAccelerator(accelerator) {
+    try {
+      globalShortcut.unregister(accelerator);
+      this.registeredAccelerators.delete(accelerator);
+      this.shortcutPriorities.delete(accelerator);
+      
+      // Remove from shortcuts map
+      for (const [windowId, info] of this.shortcuts.entries()) {
+        if (info.accelerator === accelerator) {
+          this.shortcuts.delete(windowId);
+          break;
+        }
+      }
+      
+      console.log(`ShortcutManager: Unregistered shortcut ${accelerator}`);
+      return true;
+    } catch (error) {
+      console.error('Error unregistering shortcut by accelerator:', error);
+      return false;
+    }
   }
 
   convertShortcutToAccelerator(shortcut) {
@@ -155,7 +192,7 @@ class ShortcutManager {
     return result;
   }
 
-  validateShortcut(shortcut) {
+  validateShortcut(shortcut, priority = this.priority.WINDOW) {
     if (!shortcut) return false;
     
     try {
@@ -163,9 +200,12 @@ class ShortcutManager {
       
       // Much more permissive validation - allow almost any key combination
       const isValidFormat = accelerator.length > 0;
-      const isNotConflicting = !this.registeredAccelerators.has(accelerator);
       
-      console.log(`ShortcutManager: Validating "${shortcut}" -> "${accelerator}": format=${isValidFormat}, noConflict=${isNotConflicting}`);
+      // Check if shortcut conflicts with higher priority shortcuts
+      const existingPriority = this.shortcutPriorities.get(accelerator);
+      const isNotConflicting = !existingPriority || existingPriority <= priority;
+      
+      console.log(`ShortcutManager: Validating "${shortcut}" -> "${accelerator}": format=${isValidFormat}, noConflict=${isNotConflicting}, priority=${priority}`);
       
       return isValidFormat && isNotConflicting;
     } catch (error) {
@@ -176,16 +216,20 @@ class ShortcutManager {
 
   activateAll() {
     this.active = true;
-    // Re-register all shortcuts
+    // Re-register all shortcuts with their priorities
     const shortcuts = Array.from(this.shortcuts.entries());
     this.shortcuts.clear();
     this.registeredAccelerators.clear();
+    this.shortcutPriorities.clear();
+    
+    // Sort by priority (higher first) to ensure proper registration order
+    shortcuts.sort((a, b) => (b[1].priority || 1) - (a[1].priority || 1));
     
     shortcuts.forEach(([windowId, info]) => {
-      this.setWindowShortcut(windowId, info.original, info.callback);
+      this.setWindowShortcut(windowId, info.original, info.callback, info.priority);
     });
     
-    console.log(`ShortcutManager: Activated ${shortcuts.length} shortcuts`);
+    console.log(`ShortcutManager: Activated ${shortcuts.length} shortcuts with priority system`);
   }
 
   deactivateAll() {
@@ -193,6 +237,7 @@ class ShortcutManager {
     try {
       globalShortcut.unregisterAll();
       this.registeredAccelerators.clear();
+      this.shortcutPriorities.clear();
       console.log('ShortcutManager: Deactivated all shortcuts');
     } catch (error) {
       console.error('Error deactivating shortcuts:', error);
@@ -204,6 +249,7 @@ class ShortcutManager {
       globalShortcut.unregisterAll();
       this.shortcuts.clear();
       this.registeredAccelerators.clear();
+      this.shortcutPriorities.clear();
       console.log('ShortcutManager: Cleaned up all shortcuts');
     } catch (error) {
       console.error('Error cleaning up shortcuts:', error);
@@ -224,9 +270,22 @@ class ShortcutManager {
   getAllShortcuts() {
     const shortcuts = {};
     this.shortcuts.forEach((info, windowId) => {
-      shortcuts[windowId] = info.original;
+      shortcuts[windowId] = {
+        shortcut: info.original,
+        priority: info.priority
+      };
     });
     return shortcuts;
+  }
+
+  // NEW: Method to set auto-key shortcuts with highest priority
+  setAutoKeyShortcut(windowId, shortcut, callback) {
+    return this.setWindowShortcut(windowId, shortcut, callback, this.priority.AUTO_KEY);
+  }
+
+  // NEW: Method to set global shortcuts with medium priority
+  setGlobalShortcut(shortcut, callback) {
+    return this.setWindowShortcut('global', shortcut, callback, this.priority.GLOBAL);
   }
 }
 
