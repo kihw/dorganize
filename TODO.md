@@ -24,6 +24,30 @@
 - **Status** : ✅ CORRIGÉ
 - **Commit** : `Fix BUG-001 and BUG-002, implement FEAT-001: Auto Key Configuration System`
 
+### [BUG-003] Problème de réinitialisation des touches après enregistrement - EN COURS 🟠
+
+* **Problème** : Certaines touches (ex: `A`) se réinitialisent ou échouent à l’enregistrement après avoir été correctement configurées
+* **Comportement observé** :
+
+  * La touche est d’abord acceptée, puis échoue lors d’une tentative ultérieure (`Failed to register shortcut: A`)
+  * Possible conflit ou absence de validation cohérente lors du redémarrage / rechargement
+* **Hypothèse** :
+
+  * Le système ne priorise pas correctement les raccourcis Auto Key vs Global / Manuels
+  * Absence de persistance ou de hiérarchisation au rechargement
+
+### [BUG-004] Auto Key non configurable manuellement - EN COURS 🟠
+
+* **Problème** : Les raccourcis générés automatiquement ne peuvent pas être ajustés ou modifiés dans l’interface
+* **Conséquence** : L’utilisateur est limité aux presets et ne peut pas adapter les touches auto-générées
+* **Amélioration proposée** :
+
+  * Ajouter une option de personnalisation pour les touches attribuées automatiquement
+  * Permettre la désactivation partielle d’un Auto Key
+
+
+
+
 ## ✅ Nouvelles Fonctionnalités Implémentées (Completed)
 
 ### [FEAT-001] Auto Key Configuration System - IMPLÉMENTÉ ✅
@@ -45,6 +69,19 @@
   - `Fix BUG-001 and BUG-002, implement FEAT-001: Auto Key Configuration System`
   - `Add Auto Key Configuration button and modal styles to config.html`
 
+### [FEAT-002] Système de hiérarchisation et priorité des raccourcis - À FAIRE 🔵
+
+* **Objectif** : Lors du chargement du fichier JSON de configuration, définir une priorité :
+
+  1. **Auto Key actif** → les raccourcis Auto Key sont prioritaires
+  2. **Touches globales utilisateur**
+  3. **Touches spécifiques à une fenêtre**
+* **Fonctionnalités attendues** :
+
+  * Validation et surcharge des raccourcis en fonction de leur type
+  * Sauvegarde dans le JSON selon leur catégorie
+  * Mise à jour dynamique à l’activation/désactivation des Auto Keys
+  
 ## 🔧 Améliorations Techniques Apportées
 
 ### Persistance des Paramètres
