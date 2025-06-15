@@ -1,0 +1,9 @@
+{
+  "languages": {
+    "FR": "lang/fr.json",
+    "EN": "lang/en.json",
+    "DE": "lang/de.json",
+    "ES": "lang/es.json",
+    "IT": "lang/it.json"
+  }
+}

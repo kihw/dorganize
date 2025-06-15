@@ -1,7 +1,9 @@
 {
   "name": "dorganize",
+
   "version": "0.4.1",
   "description": "A modern cross-platform window organizer for Dofus with keyboard shortcuts, window management, and navigation dock - Bug fixes and Auto Key Configuration",
+
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
@@ -26,10 +28,12 @@
     "gaming",
     "multiboxing",
     "electron",
+
     "cross-platform",
     "auto-configuration",
     "initiative-sorting",
     "keyboard-shortcuts"
+
   ],
   "author": {
     "name": "Dorganize Team",
@@ -221,3 +225,4 @@
     }
   }
 }
+
