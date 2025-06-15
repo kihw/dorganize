@@ -78,6 +78,108 @@
         .shortcuts-status.disabled {
             background: rgba(231, 76, 60, 0.9);
         }
+
+
+        /* NEW FEAT-001: Auto Key Configuration Styles */
+        .initiative-order-badge {
+            position: absolute;
+            top: -6px;
+            left: -6px;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 10px;
+            min-width: 16px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .auto-key-presets {
+            margin: 20px 0;
+        }
+
+        .preset-section {
+            margin-bottom: 20px;
+        }
+
+        .preset-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .custom-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #ecf0f1;
+        }
+
+        .custom-pattern {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-input {
+            padding: 8px 12px;
+            border: 1px solid #bdc3c7;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .auto-key-preview {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #ecf0f1;
+        }
+
+        .preview-header h4 {
+            margin: 0 0 15px 0;
+            color: #2c3e50;
+        }
+
+        .preview-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 8px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #ecf0f1;
+        }
+
+        .preview-order {
+            font-weight: bold;
+            color: #3498db;
+            min-width: 20px;
+        }
+
+        .preview-character {
+            flex: 1;
+            font-weight: 600;
+        }
+
+        .preview-initiative {
+            color: #7f8c8d;
+            font-size: 12px;
+        }
+
+        .preview-shortcut {
+            background: #3498db;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            min-width: 60px;
+            text-align: center;
+        }
+
     </style>
 </head>
 <body>
@@ -112,6 +214,11 @@
                 <button id="global-shortcuts-btn" class="btn btn-secondary" title="Configure Global Shortcuts">
                     <span>Global Shortcuts</span>
                 </button>
+                <!-- NEW FEAT-001: Auto Key Configuration Button -->
+                <button id="auto-key-config-btn" class="btn btn-success" title="Auto Key Configuration">
+                    <span>⚡ Auto Keys</span>
+                </button>
+
                 <button id="next-window-btn" class="btn btn-secondary" title="Next Window">
                     <span>Next Window</span>
                 </button>

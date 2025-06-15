@@ -1,3 +1,4 @@
+
 const { ipcRenderer } = require('electron');
 
 console.log('Config.js: Loading...');
@@ -565,6 +566,7 @@ class ConfigRenderer {
     this.showShortcutModal(windowId, false);
   }
 
+
   showShortcutModal(windowId, isGlobal = false) {
     const modal = document.getElementById('shortcut-modal');
     const display = document.getElementById('shortcut-display');
@@ -605,18 +607,17 @@ class ConfigRenderer {
         meta: e.metaKey
       });
 
-      // Build the shortcut string
+
       const keys = [];
 
-      // Add modifiers
+
       if (e.ctrlKey || e.metaKey) keys.push('Ctrl');
       if (e.altKey) keys.push('Alt');
       if (e.shiftKey) keys.push('Shift');
 
-      // Handle the main key
       let mainKey = '';
 
-      // Special keys mapping
+
       const specialKeys = {
         ' ': 'Space',
         'Enter': 'Return',
@@ -645,28 +646,19 @@ class ConfigRenderer {
         '\\': '\\'
       };
 
-      // Function keys
+
       if (e.key.match(/^F\d+$/)) {
         mainKey = e.key;
-      }
-      // Special keys
-      else if (specialKeys[e.key]) {
+      } else if (specialKeys[e.key]) {
         mainKey = specialKeys[e.key];
-      }
-      // Regular keys (letters, numbers)
-      else if (e.key.length === 1 && e.key.match(/[a-zA-Z0-9]/)) {
+      } else if (e.key.length === 1 && e.key.match(/[a-zA-Z0-9]/)) {
         mainKey = e.key.toUpperCase();
-      }
-      // Other single character keys
-      else if (e.key.length === 1) {
+      } else if (e.key.length === 1) {
         mainKey = e.key;
-      }
-      // Skip modifier-only presses
-      else if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) {
+      } else if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) {
         return;
       }
 
-      // If we have a main key, create the shortcut
       if (mainKey) {
         keys.push(mainKey);
         this.currentShortcut = keys.join('+');
@@ -678,7 +670,7 @@ class ConfigRenderer {
       }
     };
 
-    // Clean up any existing handler
+
     if (this.currentKeyHandler) {
       document.removeEventListener('keydown', this.currentKeyHandler);
     }
@@ -686,7 +678,7 @@ class ConfigRenderer {
     document.addEventListener('keydown', keyHandler);
     this.currentKeyHandler = keyHandler;
 
-    // Focus the modal to ensure it receives key events
+
     const modal = document.getElementById('shortcut-modal');
     if (modal) {
       modal.focus();
@@ -697,13 +689,11 @@ class ConfigRenderer {
     if (this.currentShortcut) {
       try {
         if (this.currentGlobalShortcutType) {
-          // Save global shortcut - now using config file
           console.log(`Config.js: Saving global shortcut ${this.currentShortcut} for ${this.currentGlobalShortcutType}`);
 
           const success = await ipcRenderer.invoke('set-global-shortcut', this.currentGlobalShortcutType, this.currentShortcut);
 
           if (success) {
-            // Update local data
             this.globalShortcuts[this.currentGlobalShortcutType] = this.currentShortcut;
             this.updateGlobalShortcutsDisplay();
             console.log('Config.js: Global shortcut saved successfully');
@@ -712,13 +702,11 @@ class ConfigRenderer {
             alert('Failed to save shortcut. It may be invalid or already in use.');
           }
         } else if (this.currentShortcutWindowId) {
-          // Save window shortcut - now using config file
           console.log(`Config.js: Saving shortcut ${this.currentShortcut} for window ${this.currentShortcutWindowId}`);
 
           const success = await ipcRenderer.invoke('set-shortcut', this.currentShortcutWindowId, this.currentShortcut);
 
           if (success) {
-            // Update local data
             const window = this.windows.find(w => w.id === this.currentShortcutWindowId);
             if (window) {
               window.shortcut = this.currentShortcut;
@@ -744,14 +732,10 @@ class ConfigRenderer {
 
   async removeShortcut() {
     if (this.currentGlobalShortcutType) {
-      // Remove global shortcut
       await this.removeGlobalShortcut(this.currentGlobalShortcutType);
     } else if (this.currentShortcutWindowId) {
-      // Remove window shortcut
       try {
         await ipcRenderer.invoke('remove-shortcut', this.currentShortcutWindowId);
-
-        // Update local data
         const window = this.windows.find(w => w.id === this.currentShortcutWindowId);
         if (window) {
           window.shortcut = null;
@@ -777,7 +761,7 @@ class ConfigRenderer {
       display.classList.remove('recording', 'captured');
     }
 
-    // Clean up event listener
+
     if (this.currentKeyHandler) {
       document.removeEventListener('keydown', this.currentKeyHandler);
       this.currentKeyHandler = null;
@@ -796,7 +780,7 @@ class ConfigRenderer {
     if (modal && classGrid) {
       this.currentClassWindowId = windowId;
 
-      // Populate class grid
+
       let classHTML = '';
       Object.keys(this.dofusClasses).forEach(classKey => {
         const classInfo = this.dofusClasses[classKey];
@@ -821,7 +805,7 @@ class ConfigRenderer {
   }
 
   selectClass(classKey) {
-    // Update visual selection
+
     const classOptions = document.querySelectorAll('.class-option');
     classOptions.forEach(option => {
       option.classList.remove('selected');
@@ -831,8 +815,6 @@ class ConfigRenderer {
     if (selectedOption) {
       selectedOption.classList.add('selected');
     }
-
-    // Save the class change
     this.saveClassChange(classKey);
   }
 
@@ -841,16 +823,12 @@ class ConfigRenderer {
       try {
         const settings = { [`classes.${this.currentClassWindowId}`]: classKey };
         await ipcRenderer.invoke('save-settings', settings);
-
-        // Update local data
         const window = this.windows.find(w => w.id === this.currentClassWindowId);
         if (window) {
           window.dofusClass = classKey;
           window.avatar = this.dofusClasses[classKey].avatar;
           this.renderWindows();
         }
-
-        // Close modal after a short delay
         setTimeout(() => {
           this.closeClassModal();
         }, 300);

@@ -1,3 +1,4 @@
+
 const { app, BrowserWindow, Tray, Menu, ipcMain, globalShortcut, screen } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
@@ -785,6 +786,7 @@ class Dorganize {
       return this.shortcutConfig.getStatistics();
     });
 
+
     ipcMain.handle('export-shortcut-config', () => {
       return this.shortcutConfig.exportConfig();
     });
@@ -804,6 +806,11 @@ class Dorganize {
     // Load shortcuts enabled state
     this.shortcutsEnabled = this.store.get('shortcutsEnabled', true);
     console.log(`Dorganize: Shortcuts enabled: ${this.shortcutsEnabled}`);
+
+
+    // FIX BUG-001: Mark settings as loaded
+    this.settingsLoaded = true;
+
 
     // Mettre à jour l'icône du tray après le chargement des paramètres
     if (this.tray) {
@@ -910,6 +917,12 @@ class Dorganize {
         });
 
         this.dofusWindows = windows;
+
+        
+        // FIX BUG-002: Apply proper sorting after updating windows
+        this.sortWindowsByInitiative();
+        
+
         console.log(`Dorganize: Updated dofusWindows array, now has ${this.dofusWindows.length} windows`);
         this.updateTrayTooltip();
 
@@ -948,10 +961,31 @@ class Dorganize {
         console.log(`Dorganize: No changes in window list (current: ${this.dofusWindows.length}, new: ${windows.length})`);
         // But still update the array to ensure consistency
         this.dofusWindows = windows;
+
+        
+        // FIX BUG-002: Still apply sorting even if no changes detected
+        this.sortWindowsByInitiative();
+
       }
     } catch (error) {
       console.error('Dorganize: Error refreshing windows:', error);
     }
+  }
+
+  // FIX BUG-002: Proper initiative-based sorting method
+  sortWindowsByInitiative() {
+    console.log('Dorganize: Sorting windows by initiative');
+    
+    this.dofusWindows.sort((a, b) => {
+      // Sort by initiative (highest first), then by character name
+      if (b.initiative !== a.initiative) {
+        return b.initiative - a.initiative;
+      }
+      return a.character.localeCompare(b.character);
+    });
+
+    console.log('Dorganize: Windows sorted by initiative:', 
+      this.dofusWindows.map(w => `${w.character}: ${w.initiative}`));
   }
 
   updateTrayTooltip() {
@@ -1054,4 +1088,6 @@ class Dorganize {
 
 // Initialize the application
 console.log('Starting Dorganize...');
+
 new Dorganize();
+
