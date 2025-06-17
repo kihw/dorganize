@@ -6,7 +6,7 @@ const execAsync = promisify(exec);
 const { WindowActivator } = require('./WindowActivator');
 
 class WindowManagerWindows {
-  constructor() {
+  constructor(shortcutConfig = null) {
     this.windows = new Map();
     this.lastWindowCheck = 0;
     this.psScriptPath = null;
@@ -15,6 +15,7 @@ class WindowManagerWindows {
 
     // AJOUTÉ: Utiliser WindowActivator au lieu de la logique d'activation native
     this.windowActivator = new WindowActivator();
+    this.shortcutConfig = shortcutConfig;
 
     // Define available classes and their corresponding avatars
     this.dofusClasses = {
@@ -490,7 +491,7 @@ try {
         isActive: rawWindow.IsActive || false,
         bounds: rawWindow.Bounds || { X: 0, Y: 0, Width: 800, Height: 600 },
         avatar: this.getClassAvatar(finalClass),
-        shortcut: this.getStoredShortcut(stableId),
+        shortcut: this.getStoredShortcut(stableId, character, finalClass),
         enabled: this.getStoredEnabled(stableId)
       };
 
@@ -780,7 +781,24 @@ try {
     return classes[windowId] || 'feca'; // Default to Feca
   }
 
-  getStoredShortcut(windowId) {
+  getStoredShortcut(windowId, character = null, dofusClass = null) {
+    if (this.shortcutConfig) {
+      if (character && dofusClass) {
+        const shortcut = this.shortcutConfig.getCharacterShortcut(character, dofusClass);
+        if (shortcut) {
+          return shortcut;
+        }
+      } else {
+        const profile = this.shortcutConfig.config.characters[windowId];
+        if (profile) {
+          const shortcut = this.shortcutConfig.getCharacterShortcut(profile.character, profile.class);
+          if (shortcut) {
+            return shortcut;
+          }
+        }
+      }
+    }
+
     const Store = require('electron-store');
     const store = new Store();
     const shortcuts = store.get('shortcuts', {});

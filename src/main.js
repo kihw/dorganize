@@ -32,7 +32,7 @@ class Dorganize {
     this.windowActivator = new WindowActivator();
 
     // Initialize platform-specific window manager
-    this.windowManager = new WindowManagerWindows();
+    this.windowManager = new WindowManagerWindows(this.shortcutConfig);
 
     this.initializeApp();
   }
