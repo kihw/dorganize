@@ -1,79 +1,654 @@
     <!-- Auto Key Configuration Modal -->
     <div id="auto-key-config-modal" class="modal" style="display: none;">
-        <div class="modal-content">
+        <div class="modal-content auto-key-modal-content">
             <div class="modal-header">
                 <h3>⚡ Auto Key Configuration</h3>
                 <button class="modal-close" onclick="configRenderer.closeAutoKeyModal()">×</button>
             </div>
-            <div class="modal-body">
-                <p>Automatically assign keyboard shortcuts based on initiative order:</p>
+            <div class="modal-body auto-key-body">
+                <p class="auto-key-description">Automatically assign keyboard shortcuts based on initiative order (highest initiative gets the first shortcut):</p>
                 
                 <!-- Enable/Disable Auto Key -->
-                <div class="auto-key-enable">
-                    <label class="toggle-container">
+                <div class="auto-key-enable-section">
+                    <label class="auto-key-toggle-container">
                         <input type="checkbox" id="auto-key-enabled">
-                        <span class="toggle-slider"></span>
-                        <span>Enable Auto Key Configuration</span>
+                        <span class="auto-key-toggle-slider"></span>
+                        <span class="auto-key-toggle-label">Enable Auto Key Configuration</span>
                     </label>
+                    <p class="auto-key-enable-description">When enabled, shortcuts will be automatically assigned based on initiative order</p>
                 </div>
 
-                <div id="auto-key-settings" style="display: none;">
+                <!-- Auto Key Settings (hidden when disabled) -->
+                <div id="auto-key-settings" class="auto-key-settings" style="display: none;">
+                    
                     <!-- Preset Selection -->
-                    <div class="auto-key-presets">
+                    <div class="auto-key-presets-section">
                         <div class="preset-section">
-                            <h4>Choose a Preset:</h4>
+                            <h4>📋 Choose a Preset:</h4>
                             <div class="preset-buttons">
-                                <button class="btn btn-secondary preset-btn" onclick="configRenderer.selectAutoKeyPreset('numbers')">
-                                    Numbers (1, 2, 3...)
+                                <button class="btn btn-preset preset-btn" data-preset="numbers" onclick="configRenderer.selectAutoKeyPreset('numbers')">
+                                    <span class="preset-icon">🔢</span>
+                                    <span class="preset-title">Numbers</span>
+                                    <span class="preset-example">(1, 2, 3, 4...)</span>
                                 </button>
-                                <button class="btn btn-secondary preset-btn" onclick="configRenderer.selectAutoKeyPreset('function')">
-                                    Function Keys (F1, F2, F3...)
+                                <button class="btn btn-preset preset-btn" data-preset="function" onclick="configRenderer.selectAutoKeyPreset('function')">
+                                    <span class="preset-icon">⌨️</span>
+                                    <span class="preset-title">Function Keys</span>
+                                    <span class="preset-example">(F1, F2, F3, F4...)</span>
                                 </button>
-                                <button class="btn btn-secondary preset-btn" onclick="configRenderer.selectAutoKeyPreset('numpad')">
-                                    Numpad (Num1, Num2, Num3...)
+                                <button class="btn btn-preset preset-btn" data-preset="numpad" onclick="configRenderer.selectAutoKeyPreset('numpad')">
+                                    <span class="preset-icon">🔟</span>
+                                    <span class="preset-title">Numpad</span>
+                                    <span class="preset-example">(Num1, Num2, Num3...)</span>
                                 </button>
                             </div>
                         </div>
 
                         <!-- Custom Pattern -->
                         <div class="custom-section">
-                            <h4>Or Create Custom Pattern:</h4>
-                            <div class="custom-pattern">
-                                <label for="custom-pattern-input">Pattern (use {n} for position):</label>
-                                <input type="text" id="custom-pattern-input" class="form-input" 
-                                       placeholder="Ctrl+Alt+{n}" value="Ctrl+Alt+{n}">
-                                <button class="btn btn-secondary" onclick="configRenderer.selectAutoKeyPreset('custom')">
-                                    Use Custom Pattern
-                                </button>
+                            <h4>🎨 Or Create Custom Pattern:</h4>
+                            <div class="custom-pattern-group">
+                                <label for="custom-pattern-input" class="custom-pattern-label">Pattern (use {n} for position):</label>
+                                <div class="custom-pattern-input-group">
+                                    <input type="text" id="custom-pattern-input" class="form-input custom-pattern-input" 
+                                           placeholder="Ctrl+Alt+{n}" value="Ctrl+Alt+{n}">
+                                    <button class="btn btn-preset preset-btn" data-preset="custom" onclick="configRenderer.selectAutoKeyPreset('custom')">
+                                        <span class="preset-icon">✨</span>
+                                        <span class="preset-title">Use Custom</span>
+                                    </button>
+                                </div>
+                                <div class="custom-pattern-examples">
+                                    <p><strong>Examples:</strong></p>
+                                    <div class="example-tags">
+                                        <code class="example-tag" onclick="configRenderer.setCustomPattern('Ctrl+{n}')">Ctrl+{n}</code>
+                                        <code class="example-tag" onclick="configRenderer.setCustomPattern('Alt+F{n}')">Alt+F{n}</code>
+                                        <code class="example-tag" onclick="configRenderer.setCustomPattern('Shift+{n}')">Shift+{n}</code>
+                                        <code class="example-tag" onclick="configRenderer.setCustomPattern('Ctrl+Shift+{n}')">Ctrl+Shift+{n}</code>
+                                    </div>
+                                </div>
                             </div>
-                            <p><small>Examples: <code>Ctrl+{n}</code>, <code>Alt+F{n}</code>, <code>Shift+{n}</code></small></p>
                         </div>
                     </div>
 
                     <!-- Preview Section -->
-                    <div class="auto-key-preview">
+                    <div class="auto-key-preview-section">
                         <div class="preview-header">
-                            <h4>Preview (ordered by initiative):</h4>
+                            <h4>👁️ Preview (ordered by initiative):</h4>
+                            <div class="preview-info">
+                                <span class="preview-count">0 characters detected</span>
+                                <button class="btn btn-small btn-secondary" onclick="configRenderer.refreshAutoKeyPreview()">🔄 Refresh</button>
+                            </div>
                         </div>
-                        <div id="auto-key-preview-list">
-                            <!-- Preview items will be populated here -->
+                        <div id="auto-key-preview-list" class="auto-key-preview-list">
+                            <div class="no-preview">
+                                <p>Select a preset or custom pattern to see the preview</p>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Manual Override Section -->
                     <div class="manual-override-section">
-                        <h4>Manual Adjustments:</h4>
-                        <p><small>Click on any shortcut below to customize it individually while keeping Auto Key enabled:</small></p>
-                        <div id="manual-shortcuts-list">
+                        <h4>🔧 Manual Adjustments:</h4>
+                        <p class="manual-override-description">Click on any shortcut below to customize it individually while keeping Auto Key enabled:</p>
+                        <div id="manual-shortcuts-list" class="manual-shortcuts-list">
                             <!-- Manual shortcut items will be populated here -->
                         </div>
                     </div>
+
+                    <!-- Conflict Detection -->
+                    <div id="auto-key-conflicts" class="auto-key-conflicts" style="display: none;">
+                        <div class="conflict-header">
+                            <h4>⚠️ Conflict Detection:</h4>
+                        </div>
+                        <div id="auto-key-conflicts-list" class="auto-key-conflicts-list">
+                            <!-- Conflicts will be shown here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Disabled State Message -->
+                <div id="auto-key-disabled-message" class="auto-key-disabled-message">
+                    <div class="disabled-icon">⏸️</div>
+                    <h4>Auto Key Configuration is disabled</h4>
+                    <p>Enable Auto Key to automatically assign shortcuts based on initiative order</p>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button id="auto-key-apply" class="btn btn-primary" onclick="configRenderer.applyAutoKeyConfiguration()">Apply Configuration</button>
-                <button id="auto-key-disable" class="btn btn-danger" onclick="configRenderer.disableAutoKey()" style="display: none;">Disable Auto Key</button>
-                <button class="btn btn-secondary" onclick="configRenderer.closeAutoKeyModal()">Close</button>
+            
+            <div class="modal-footer auto-key-footer">
+                <div class="footer-left">
+                    <div class="auto-key-status">
+                        <span id="auto-key-status-text">Auto Key: Disabled</span>
+                    </div>
+                </div>
+                <div class="footer-right">
+                    <button id="auto-key-apply" class="btn btn-primary" onclick="configRenderer.applyAutoKeyConfiguration()" disabled>
+                        ⚡ Apply Configuration
+                    </button>
+                    <button id="auto-key-disable" class="btn btn-danger" onclick="configRenderer.disableAutoKey()" style="display: none;">
+                        🛑 Disable Auto Key
+                    </button>
+                    <button class="btn btn-secondary" onclick="configRenderer.closeAutoKeyModal()">Close</button>
+                </div>
             </div>
         </div>
     </div>
+
+    <!-- Auto Key Specific Styles -->
+    <style>
+        .auto-key-modal-content {
+            min-width: 700px;
+            max-width: 900px;
+            max-height: 90vh;
+        }
+
+        .auto-key-body {
+            max-height: 70vh;
+            overflow-y: auto;
+            padding: 24px;
+        }
+
+        .auto-key-description {
+            font-size: 16px;
+            margin-bottom: 24px;
+            color: #2c3e50;
+            text-align: center;
+            padding: 16px;
+            background: linear-gradient(135deg, #e8f4f8, #f1f8ff);
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+        }
+
+        /* Enable/Disable Section */
+        .auto-key-enable-section {
+            margin-bottom: 24px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 2px solid #e9ecef;
+        }
+
+        .auto-key-toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .auto-key-toggle-container input[type="checkbox"] {
+            display: none;
+        }
+
+        .auto-key-toggle-slider {
+            position: relative;
+            width: 60px;
+            height: 30px;
+            background: #bdc3c7;
+            border-radius: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .auto-key-toggle-slider::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .auto-key-toggle-container input:checked + .auto-key-toggle-slider {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+        }
+
+        .auto-key-toggle-container input:checked + .auto-key-toggle-slider::after {
+            transform: translateX(30px);
+        }
+
+        .auto-key-enable-description {
+            margin: 12px 0 0 72px;
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+
+        /* Settings Section */
+        .auto-key-settings {
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Presets Section */
+        .auto-key-presets-section {
+            margin-bottom: 24px;
+        }
+
+        .preset-section {
+            margin-bottom: 20px;
+        }
+
+        .preset-section h4 {
+            margin: 0 0 15px 0;
+            color: #2c3e50;
+            font-size: 16px;
+        }
+
+        .preset-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+        }
+
+        .btn-preset {
+            padding: 16px;
+            border: 2px solid #ecf0f1;
+            border-radius: 12px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            text-align: center;
+        }
+
+        .btn-preset:hover {
+            border-color: #3498db;
+            background: #f8f9fa;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.2);
+        }
+
+        .btn-preset.selected {
+            border-color: #3498db;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+        }
+
+        .preset-icon {
+            font-size: 24px;
+        }
+
+        .preset-title {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .preset-example {
+            font-size: 12px;
+            opacity: 0.8;
+            font-family: monospace;
+        }
+
+        /* Custom Pattern Section */
+        .custom-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #ecf0f1;
+        }
+
+        .custom-section h4 {
+            margin: 0 0 15px 0;
+            color: #2c3e50;
+            font-size: 16px;
+        }
+
+        .custom-pattern-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .custom-pattern-label {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .custom-pattern-input-group {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .custom-pattern-input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: monospace;
+            transition: border-color 0.3s ease;
+        }
+
+        .custom-pattern-input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .custom-pattern-examples {
+            margin-top: 12px;
+        }
+
+        .example-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .example-tag {
+            background: #ecf0f1;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+
+        .example-tag:hover {
+            background: #3498db;
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        /* Preview Section */
+        .auto-key-preview-section {
+            margin-bottom: 24px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 1px solid #ecf0f1;
+        }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .preview-header h4 {
+            margin: 0;
+            color: #2c3e50;
+            font-size: 16px;
+        }
+
+        .preview-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .preview-count {
+            font-size: 14px;
+            color: #7f8c8d;
+            font-weight: 600;
+        }
+
+        .auto-key-preview-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .no-preview {
+            text-align: center;
+            padding: 40px 20px;
+            color: #7f8c8d;
+        }
+
+        .preview-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px;
+            margin: 8px 0;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #ecf0f1;
+            transition: all 0.2s ease;
+        }
+
+        .preview-item:hover {
+            background: #f1f8ff;
+            border-color: #3498db;
+        }
+
+        .preview-order {
+            font-weight: bold;
+            color: #3498db;
+            min-width: 30px;
+            text-align: center;
+            font-size: 16px;
+        }
+
+        .preview-character {
+            flex: 1;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .preview-class {
+            color: #7f8c8d;
+            font-size: 14px;
+            min-width: 80px;
+        }
+
+        .preview-initiative {
+            color: #e67e22;
+            font-size: 12px;
+            font-weight: 600;
+            min-width: 60px;
+            text-align: center;
+        }
+
+        .preview-shortcut {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            font-weight: 600;
+            min-width: 80px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(52, 152, 219, 0.3);
+        }
+
+        /* Manual Override Section */
+        .manual-override-section {
+            margin-bottom: 24px;
+        }
+
+        .manual-override-section h4 {
+            margin: 0 0 8px 0;
+            color: #2c3e50;
+            font-size: 16px;
+        }
+
+        .manual-override-description {
+            margin: 0 0 16px 0;
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+
+        .manual-shortcuts-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .manual-shortcut-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #ecf0f1;
+        }
+
+        .manual-character-name {
+            flex: 1;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .manual-shortcut-display {
+            background: #ecf0f1;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-width: 80px;
+            text-align: center;
+            border: 1px solid transparent;
+        }
+
+        .manual-shortcut-display:hover {
+            background: #bdc3c7;
+            border-color: #3498db;
+        }
+
+        .manual-shortcut-display.auto-generated {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            color: white;
+        }
+
+        /* Conflict Section */
+        .auto-key-conflicts {
+            margin-bottom: 24px;
+            padding: 16px;
+            background: #fff5f5;
+            border-radius: 8px;
+            border: 1px solid #e74c3c;
+        }
+
+        .conflict-header h4 {
+            margin: 0 0 12px 0;
+            color: #e74c3c;
+            font-size: 16px;
+        }
+
+        .conflict-item {
+            padding: 8px 12px;
+            background: white;
+            border-radius: 6px;
+            margin: 4px 0;
+            font-size: 14px;
+            color: #c0392b;
+        }
+
+        /* Disabled State */
+        .auto-key-disabled-message {
+            text-align: center;
+            padding: 60px 20px;
+            color: #7f8c8d;
+        }
+
+        .disabled-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .auto-key-disabled-message h4 {
+            margin: 0 0 12px 0;
+            color: #5a6c7d;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .auto-key-disabled-message p {
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        /* Footer */
+        .auto-key-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            border-top: 1px solid #ecf0f1;
+            background: #f8f9fa;
+        }
+
+        .footer-left {
+            flex: 1;
+        }
+
+        .footer-right {
+            display: flex;
+            gap: 12px;
+        }
+
+        .auto-key-status {
+            font-size: 14px;
+            font-weight: 600;
+            color: #7f8c8d;
+        }
+
+        .auto-key-status.enabled {
+            color: #27ae60;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .auto-key-modal-content {
+                min-width: auto;
+                margin: 10px;
+                max-width: calc(100vw - 20px);
+            }
+
+            .preset-buttons {
+                grid-template-columns: 1fr;
+            }
+
+            .custom-pattern-input-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .preview-header {
+                flex-direction: column;
+                gap: 12px;
+                align-items: stretch;
+            }
+
+            .preview-item {
+                flex-direction: column;
+                gap: 8px;
+                text-align: center;
+            }
+
+            .auto-key-footer {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .footer-right {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
