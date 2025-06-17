@@ -1,5 +1,370 @@
+const fs = require('fs');
+const path = require('path');
+const { app } = require('electron');
+
+class ShortcutConfigManager {
+  constructor() {
+    // Get user data directory
+    const userDataPath = app.getPath('userData');
+    this.configDir = path.join(userDataPath, 'config');
+    this.configFile = path.join(this.configDir, 'shortcuts.json');
+
+    // Default configuration structure
+    this.config = {
+      version: '1.1.0',
+      lastUpdated: new Date().toISOString(),
+      priorities: {
+        AUTO_KEY: 3,
+        GLOBAL: 2,
+        WINDOW: 1
+      },
+      shortcuts: {
+        characters: {},
+        global: {},
+        autoKey: {
+          enabled: false,
+          pattern: 'numbers',
+          customPattern: 'Ctrl+Alt+{n}',
+          assignments: {}
+        }
+      },
+      characters: {}
+    };
+
+    this.ensureConfigDirectory();
+    this.loadConfig();
+  }
+
+  ensureConfigDirectory() {
+    try {
+      if (!fs.existsSync(this.configDir)) {
+        fs.mkdirSync(this.configDir, { recursive: true });
+        console.log('ShortcutConfigManager: Created config directory');
+      }
+    } catch (error) {
+      console.error('ShortcutConfigManager: Error creating config directory:', error);
+    }
+  }
+
+  loadConfig() {
+    try {
+      if (fs.existsSync(this.configFile)) {
+        const data = fs.readFileSync(this.configFile, 'utf8');
+        const loadedConfig = JSON.parse(data);
+
+        // Merge with default config to ensure all properties exist
+        this.config = {
+          ...this.config,
+          ...loadedConfig,
+          shortcuts: {
+            ...this.config.shortcuts,
+            ...loadedConfig.shortcuts,
+            characters: loadedConfig.shortcuts?.characters || {},
+            global: loadedConfig.shortcuts?.global || {},
+            autoKey: {
+              ...this.config.shortcuts.autoKey,
+              ...loadedConfig.shortcuts?.autoKey
+            }
+          },
+          priorities: {
+            ...this.config.priorities,
+            ...loadedConfig.priorities
+          },
+          characters: loadedConfig.characters || {}
+        };
+
+        console.log('ShortcutConfigManager: Config loaded successfully');
+      } else {
+        console.log('ShortcutConfigManager: No existing config found, using defaults');
+        this.saveConfig();
+      }
+    } catch (error) {
+      console.error('ShortcutConfigManager: Error loading config:', error);
+      console.log('ShortcutConfigManager: Using default configuration');
+    }
+  }
+
+  saveConfig() {
+    try {
+      this.config.lastUpdated = new Date().toISOString();
+      const configData = JSON.stringify(this.config, null, 2);
+      fs.writeFileSync(this.configFile, configData, 'utf8');
+      console.log('ShortcutConfigManager: Config saved successfully');
+      return true;
+    } catch (error) {
+      console.error('ShortcutConfigManager: Error saving config:', error);
+      return false;
+    }
+  }
+
+  // Character key generation
+  generateCharacterKey(character, dofusClass) {
+    if (!character || !dofusClass) {
+      console.warn('ShortcutConfigManager: Cannot generate character key without character and class');
+      return null;
+    }
+    const cleanCharacter = character.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const cleanClass = dofusClass.toLowerCase().replace(/[^a-z0-9]/g, '');
+    return `${cleanCharacter}_${cleanClass}`;
+  }
+
+  // Character profile management
+  setCharacterProfile(windowId, character, dofusClass) {
+    if (!windowId || !character || !dofusClass) return false;
+
+    this.config.characters[windowId] = {
+      character: character,
+      class: dofusClass,
+      lastSeen: new Date().toISOString(),
+      windowId: windowId
+    };
+
+    return this.saveConfig();
+  }
+
+  // Global shortcuts management
+  getGlobalShortcut(type) {
+    return this.config.shortcuts.global[type] || null;
+  }
+
+  setGlobalShortcut(type, shortcut) {
+    if (!type || !shortcut) return false;
+
+    this.config.shortcuts.global[type] = shortcut;
+    return this.saveConfig();
+  }
+
+  removeGlobalShortcut(type) {
+    if (this.config.shortcuts.global[type]) {
+      delete this.config.shortcuts.global[type];
+      return this.saveConfig();
+    }
+    return false;
+  }
+
+  getAllGlobalShortcuts() {
+    return { ...this.config.shortcuts.global };
+  }
+
+  // Character shortcuts management
+  getCharacterShortcut(character, dofusClass) {
+    const characterKey = this.generateCharacterKey(character, dofusClass);
+    if (!characterKey) return null;
+
+    const shortcutData = this.config.shortcuts.characters[characterKey];
+    return shortcutData ? shortcutData.shortcut : null;
+  }
+
+  setWindowShortcut(windowId, shortcut, character, dofusClass, priority = this.config.priorities.WINDOW) {
+    if (!windowId || !shortcut || !character || !dofusClass) {
+      console.warn('ShortcutConfigManager: Missing required parameters for setWindowShortcut');
+      return false;
+    }
+
+    const characterKey = this.generateCharacterKey(character, dofusClass);
+    if (!characterKey) return false;
+
+    this.config.shortcuts.characters[characterKey] = {
+      shortcut: shortcut,
+      character: character,
+      class: dofusClass,
+      windowId: windowId,
+      priority: priority,
+      lastUsed: new Date().toISOString(),
+      usageCount: (this.config.shortcuts.characters[characterKey]?.usageCount || 0) + 1,
+      autoGenerated: priority === this.config.priorities.AUTO_KEY
+    };
+
+    return this.saveConfig();
+  }
+
+  removeWindowShortcut(windowId) {
+    // Find and remove shortcut by windowId
+    let removed = false;
+    Object.keys(this.config.shortcuts.characters).forEach(characterKey => {
+      if (this.config.shortcuts.characters[characterKey].windowId === windowId) {
+        delete this.config.shortcuts.characters[characterKey];
+        removed = true;
+      }
+    });
+
+    if (removed) {
+      this.saveConfig();
+    }
+    return removed;
+  }
+
+  removeCharacterShortcut(character, dofusClass) {
+    const characterKey = this.generateCharacterKey(character, dofusClass);
+    if (!characterKey) return false;
+
+    if (this.config.shortcuts.characters[characterKey]) {
+      delete this.config.shortcuts.characters[characterKey];
+      return this.saveConfig();
+    }
+    return false;
+  }
+
+  linkShortcutToWindow(character, dofusClass, windowId) {
+    const characterKey = this.generateCharacterKey(character, dofusClass);
+    if (!characterKey) return null;
+
+    const shortcutData = this.config.shortcuts.characters[characterKey];
+    if (shortcutData) {
+      // Update the windowId to link to current window
+      shortcutData.windowId = windowId;
+      shortcutData.lastUsed = new Date().toISOString();
+      this.saveConfig();
+      return shortcutData.shortcut;
+    }
+
+    return null;
+  }
+
+  getShortcutPriority(characterKey) {
+    const shortcutData = this.config.shortcuts.characters[characterKey];
+    return shortcutData ? shortcutData.priority : this.config.priorities.WINDOW;
+  }
+
+  // Auto Key Configuration
+  isAutoKeyEnabled() {
+    return this.config.shortcuts.autoKey.enabled || false;
+  }
+
+  setAutoKeyEnabled(enabled) {
+    this.config.shortcuts.autoKey.enabled = enabled;
+    return this.saveConfig();
+  }
+
+  getAutoKeyPattern() {
+    return this.config.shortcuts.autoKey.pattern || 'numbers';
+  }
+
+  setAutoKeyPattern(pattern, customPattern = null) {
+    this.config.shortcuts.autoKey.pattern = pattern;
+    if (customPattern) {
+      this.config.shortcuts.autoKey.customPattern = customPattern;
+    }
+    return this.saveConfig();
+  }
+
+  getAutoKeyCustomPattern() {
+    return this.config.shortcuts.autoKey.customPattern || 'Ctrl+Alt+{n}';
+  }
+
+  applyAutoKeyConfiguration(windows) {
+    if (!this.isAutoKeyEnabled()) {
+      console.log('ShortcutConfigManager: Auto Key is disabled, skipping configuration');
+      return false;
+    }
+
+    console.log('ShortcutConfigManager: Applying Auto Key configuration...');
+
+    // Sort windows by initiative (highest first), then by character name
+    const sortedWindows = [...windows].sort((a, b) => {
+      if (b.initiative !== a.initiative) {
+        return b.initiative - a.initiative;
+      }
+      return a.character.localeCompare(b.character);
+    });
+
+    const pattern = this.getAutoKeyPattern();
+    const customPattern = this.getAutoKeyCustomPattern();
+
+    console.log(`ShortcutConfigManager: Using pattern "${pattern}" for ${sortedWindows.length} windows`);
+
+    sortedWindows.forEach((window, index) => {
+      const position = index + 1;
+      let shortcut = '';
+
+      switch (pattern) {
+        case 'numbers':
+          shortcut = position.toString();
+          break;
+        case 'function':
+          shortcut = `F${position}`;
+          break;
+        case 'numpad':
+          shortcut = `Num${position}`;
+          break;
+        case 'custom':
+          shortcut = customPattern.replace('{n}', position.toString());
+          break;
+        default:
+          console.warn(`ShortcutConfigManager: Unknown pattern "${pattern}", using numbers`);
+          shortcut = position.toString();
+      }
+
+      // Set the shortcut with AUTO_KEY priority
+      const success = this.setWindowShortcut(
+        window.id,
+        shortcut,
+        window.character,
+        window.dofusClass,
+        this.config.priorities.AUTO_KEY
+      );
+
+      if (success) {
+        console.log(`ShortcutConfigManager: Auto assigned "${shortcut}" to ${window.character} (position ${position})`);
+        // Update the window object with the shortcut
+        window.shortcut = shortcut;
+      } else {
+        console.warn(`ShortcutConfigManager: Failed to auto assign shortcut to ${window.character}`);
+      }
+    });
+
+    return true;
+  }
+
+  getAutoKeyPreview(windows) {
+    const sortedWindows = [...windows].sort((a, b) => {
+      if (b.initiative !== a.initiative) {
+        return b.initiative - a.initiative;
+      }
+      return a.character.localeCompare(b.character);
+    });
+
+    const pattern = this.getAutoKeyPattern();
+    const customPattern = this.getAutoKeyCustomPattern();
+    const preview = [];
+
+    sortedWindows.forEach((window, index) => {
+      const position = index + 1;
+      let shortcut = '';
+
+      switch (pattern) {
+        case 'numbers':
+          shortcut = position.toString();
+          break;
+        case 'function':
+          shortcut = `F${position}`;
+          break;
+        case 'numpad':
+          shortcut = `Num${position}`;
+          break;
+        case 'custom':
+          shortcut = customPattern.replace('{n}', position.toString());
+          break;
+        default:
+          shortcut = position.toString();
+      }
+
+      preview.push({
+        position: position,
+        character: window.character,
+        class: window.dofusClass,
+        initiative: window.initiative,
+        shortcut: shortcut,
+        windowId: window.id
+      });
+    });
+
+    return preview;
+  }
+
+  // Utility methods
   findCharacterByName(characterName, dofusClass) {
-    // Trouve un profil de personnage par nom et classe
+    // Find a character profile by name and class
     for (const [windowId, profile] of Object.entries(this.config.characters)) {
       if (profile.character.toLowerCase() === characterName.toLowerCase() &&
         profile.class === dofusClass) {
@@ -28,8 +393,8 @@
     // Check global shortcuts
     for (const [type, globalShortcut] of Object.entries(this.config.shortcuts.global)) {
       if (globalShortcut === shortcut) {
-        return { 
-          type: 'global', 
+        return {
+          type: 'global',
           shortcutType: type,
           priority: this.config.priorities.GLOBAL
         };
@@ -44,7 +409,7 @@
     try {
       console.log('ShortcutConfigManager: Starting migration from electron-store...');
 
-      // Migrate window shortcuts - convertir en raccourcis de personnages
+      // Migrate window shortcuts - convert to character shortcuts
       const oldShortcuts = electronStore.get('shortcuts', {});
       const oldClasses = electronStore.get('classes', {});
       const oldCustomNames = electronStore.get('customNames', {});
@@ -113,7 +478,7 @@
   }
 
   cleanupOldEntries(activeWindows) {
-    // Met à jour les windowId pour les personnages actifs
+    // Update windowId for active characters
     const characterUpdates = new Map();
 
     activeWindows.forEach(window => {
@@ -121,7 +486,7 @@
       characterUpdates.set(characterKey, window.id);
     });
 
-    // Met à jour les windowId dans les raccourcis de personnages
+    // Update windowId in character shortcuts
     let updatedCount = 0;
     Object.entries(this.config.shortcuts.characters).forEach(([characterKey, shortcutData]) => {
       const newWindowId = characterUpdates.get(characterKey);
@@ -132,7 +497,7 @@
       }
     });
 
-    // Marque les raccourcis comme inactifs s'ils n'ont pas de fenêtre correspondante
+    // Mark shortcuts as inactive if they don't have corresponding windows
     Object.entries(this.config.shortcuts.characters).forEach(([characterKey, shortcutData]) => {
       const hasActiveWindow = characterUpdates.has(characterKey);
       if (!hasActiveWindow && !shortcutData.inactive) {
@@ -144,7 +509,7 @@
       }
     });
 
-    // Supprime les raccourcis très anciens (plus de 30 jours d'inactivité)
+    // Remove very old shortcuts (more than 30 days of inactivity)
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     let cleanedCount = 0;
 

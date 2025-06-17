@@ -1,4 +1,439 @@
-utChanges = Object.keys(settings).filter(key => key.startsWith('globalShortcuts.'));
+const { app, BrowserWindow, Tray, Menu, ipcMain, globalShortcut, screen } = require('electron');
+const path = require('path');
+const Store = require('electron-store');
+
+// Import services
+const ShortcutManager = require('./services/ShortcutManager');
+const ShortcutConfigManager = require('./services/ShortcutConfigManager');
+const LanguageManager = require('./services/LanguageManager');
+const { WindowActivator } = require('./services/WindowActivator');
+const WindowManagerWindows = require('./services/WindowManagerWindows');
+
+console.log('Dorganize: Starting application...');
+
+class Dorganize {
+  constructor() {
+    this.mainWindow = null;
+    this.dockWindow = null;
+    this.tray = null;
+    this.dofusWindows = [];
+    this.shortcutsEnabled = true;
+    this.shortcutsLoaded = false;
+    this.settingsLoaded = false;
+    this.isConfiguring = false;
+    this.isTogglingShortcuts = false;
+    this.globalShortcuts = {};
+
+    // Initialize services
+    this.store = new Store();
+    this.shortcutManager = new ShortcutManager();
+    this.shortcutConfig = new ShortcutConfigManager();
+    this.languageManager = new LanguageManager();
+    this.windowActivator = new WindowActivator();
+
+    // Initialize platform-specific window manager
+    this.windowManager = new WindowManagerWindows();
+
+    this.initializeApp();
+  }
+
+  async initializeApp() {
+    console.log('Dorganize: Initializing application...');
+
+    // Handle app ready
+    if (app.isReady()) {
+      await this.onReady();
+    } else {
+      app.whenReady().then(() => this.onReady());
+    }
+
+    // Handle app events
+    app.on('window-all-closed', () => {
+      if (process.platform !== 'darwin') {
+        this.quit();
+      }
+    });
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        this.showConfigWindow();
+      }
+    });
+
+    app.on('before-quit', () => {
+      this.cleanup();
+    });
+
+    // Setup IPC handlers
+    this.setupIpcHandlers();
+  }
+
+  async onReady() {
+    console.log('Dorganize: App ready, setting up...');
+
+    // Load settings first
+    this.loadSettings();
+
+    // Migrate from old electron-store format
+    const migratedCount = this.shortcutConfig.migrateFromElectronStore(this.store);
+    if (migratedCount > 0) {
+      console.log(`Dorganize: Migrated ${migratedCount} shortcuts from electron-store`);
+    }
+
+    // Create tray
+    this.createTray();
+
+    // Initial window scan
+    await this.refreshAndSort();
+
+    // Start periodic window check
+    this.startPeriodicCheck();
+
+    console.log('Dorganize: Application ready');
+  }
+
+  createTray() {
+    console.log('Dorganize: Creating system tray...');
+
+    // Determine icon based on shortcuts state
+    const iconName = this.shortcutsEnabled ? 'dorganize_vert.png' : 'dorganize_rouge.png';
+    const iconPath = path.join(__dirname, '../assets/icons', iconName);
+
+    this.tray = new Tray(iconPath);
+    this.tray.setToolTip('Dorganize');
+
+    this.updateTrayMenu();
+
+    this.tray.on('click', () => {
+      this.showConfigWindow();
+    });
+
+    console.log('Dorganize: System tray created');
+  }
+
+  updateTrayIcon() {
+    if (!this.tray) return;
+
+    const iconName = this.shortcutsEnabled ? 'dorganize_vert.png' : 'dorganize_rouge.png';
+    const iconPath = path.join(__dirname, '../assets/icons', iconName);
+    this.tray.setImage(iconPath);
+  }
+
+  updateTrayMenu() {
+    if (!this.tray) return;
+
+    const lang = this.languageManager.getCurrentLanguage();
+    const shortcutsText = this.shortcutsEnabled ? 'Disable Shortcuts' : 'Enable Shortcuts';
+
+    const menu = Menu.buildFromTemplate([
+      {
+        label: lang.main_configure || 'Configure',
+        click: () => this.showConfigWindow()
+      },
+      {
+        label: lang.main_refreshsort || 'Refresh & Sort',
+        click: () => this.refreshAndSort()
+      },
+      { type: 'separator' },
+      {
+        label: shortcutsText,
+        click: () => this.toggleShortcuts()
+      },
+      { type: 'separator' },
+      ...this.languageManager.getLanguageMenu((langCode) => this.changeLanguage(langCode)),
+      { type: 'separator' },
+      {
+        label: lang.displayTray_dock || 'Show Dock',
+        type: 'checkbox',
+        checked: this.store.get('dock.enabled', false),
+        click: (item) => {
+          this.store.set('dock.enabled', item.checked);
+          if (item.checked) {
+            this.showDockWindow();
+          } else {
+            this.hideDockWindow();
+          }
+        }
+      },
+      { type: 'separator' },
+      {
+        label: lang.main_quit || 'Quit',
+        click: () => this.quit()
+      }
+    ]);
+
+    this.tray.setContextMenu(menu);
+  }
+
+  showConfigWindow() {
+    if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+      this.mainWindow.focus();
+      return;
+    }
+
+    console.log('Dorganize: Creating configuration window...');
+
+    this.isConfiguring = true;
+    this.deactivateShortcuts();
+
+    this.mainWindow = new BrowserWindow({
+      width: 1000,
+      height: 700,
+      minWidth: 800,
+      minHeight: 600,
+      webPreferences: {
+        nodeIntegration: true,
+        contextIsolation: false,
+        enableRemoteModule: false
+      },
+      icon: path.join(__dirname, '../assets/icons/dorganize.png'),
+      title: 'Dorganize - Configuration',
+      titleBarStyle: 'hidden',
+      frame: false,
+      show: false
+    });
+
+    this.mainWindow.loadFile(path.join(__dirname, 'renderer/config.html'));
+
+    this.mainWindow.once('ready-to-show', () => {
+      this.mainWindow.show();
+    });
+
+    this.mainWindow.on('closed', () => {
+      this.mainWindow = null;
+      this.isConfiguring = false;
+
+      if (this.shortcutsEnabled) {
+        this.activateShortcuts();
+      }
+    });
+
+    // Send initial data
+    this.mainWindow.webContents.once('did-finish-load', () => {
+      this.mainWindow.webContents.send('windows-updated', this.dofusWindows);
+      this.mainWindow.webContents.send('language-changed', this.languageManager.getCurrentLanguage());
+    });
+  }
+
+  showDockWindow() {
+    if (this.dockWindow && !this.dockWindow.isDestroyed()) {
+      return;
+    }
+
+    const dockSettings = this.store.get('dock', { enabled: true, position: 'SE' });
+    const enabledWindows = this.dofusWindows.filter(w => w.enabled);
+
+    if (enabledWindows.length === 0) {
+      console.log('Dorganize: No enabled windows, not showing dock');
+      return;
+    }
+
+    console.log('Dorganize: Creating dock window...');
+
+    // Calculate dock size
+    const itemCount = enabledWindows.length + 2; // +2 for refresh and config buttons
+    const dockWidth = Math.min(600, itemCount * 60 + 20);
+    const dockHeight = 70;
+
+    // Position dock based on settings
+    const displays = screen.getAllDisplays();
+    const primaryDisplay = displays[0];
+    const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
+
+    let x, y;
+    switch (dockSettings.position) {
+      case 'NW': x = 10; y = 10; break;
+      case 'NE': x = screenWidth - dockWidth - 10; y = 10; break;
+      case 'SW': x = 10; y = screenHeight - dockHeight - 10; break;
+      case 'SE': x = screenWidth - dockWidth - 10; y = screenHeight - dockHeight - 10; break;
+      case 'N': x = (screenWidth - dockWidth) / 2; y = 10; break;
+      case 'S': x = (screenWidth - dockWidth) / 2; y = screenHeight - dockHeight - 10; break;
+      default: x = screenWidth - dockWidth - 10; y = screenHeight - dockHeight - 10;
+    }
+
+    this.dockWindow = new BrowserWindow({
+      width: dockWidth,
+      height: dockHeight,
+      x: Math.round(x),
+      y: Math.round(y),
+      frame: false,
+      transparent: true,
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      resizable: false,
+      webPreferences: {
+        nodeIntegration: true,
+        contextIsolation: false
+      },
+      show: false
+    });
+
+    this.dockWindow.loadFile(path.join(__dirname, 'renderer/dock.html'));
+
+    this.dockWindow.once('ready-to-show', () => {
+      this.dockWindow.show();
+    });
+
+    this.dockWindow.on('closed', () => {
+      this.dockWindow = null;
+    });
+
+    // Send initial data
+    this.dockWindow.webContents.once('did-finish-load', () => {
+      this.dockWindow.webContents.send('windows-updated', this.dofusWindows);
+      this.dockWindow.webContents.send('language-changed', this.languageManager.getCurrentLanguage());
+    });
+  }
+
+  hideDockWindow() {
+    if (this.dockWindow && !this.dockWindow.isDestroyed()) {
+      this.dockWindow.close();
+    }
+    this.dockWindow = null;
+  }
+
+  startPeriodicCheck() {
+    setInterval(async () => {
+      if (!this.isConfiguring) {
+        await this.refreshAndSort();
+      }
+    }, 5000); // Check every 5 seconds
+  }
+
+  registerGlobalShortcuts() {
+    try {
+      // Unregister existing global shortcuts
+      this.unregisterGlobalShortcuts();
+
+      if (!this.shortcutsEnabled) {
+        // Only register toggle shortcut when shortcuts are disabled
+        const toggleShortcut = this.shortcutConfig.getGlobalShortcut('toggleShortcuts');
+        if (toggleShortcut) {
+          const accelerator = this.shortcutManager.convertShortcutToAccelerator(toggleShortcut);
+          if (accelerator) {
+            globalShortcut.register(accelerator, () => this.toggleShortcuts());
+            this.globalShortcuts.toggleShortcuts = accelerator;
+          }
+        }
+        return;
+      }
+
+      // Register next window shortcut
+      const nextWindowShortcut = this.shortcutConfig.getGlobalShortcut('nextWindow');
+      if (nextWindowShortcut) {
+        const accelerator = this.shortcutManager.convertShortcutToAccelerator(nextWindowShortcut);
+        if (accelerator && !globalShortcut.isRegistered(accelerator)) {
+          globalShortcut.register(accelerator, () => this.activateNextWindow());
+          this.globalShortcuts.nextWindow = accelerator;
+        }
+      }
+
+      // Register toggle shortcuts shortcut
+      const toggleShortcutsShortcut = this.shortcutConfig.getGlobalShortcut('toggleShortcuts');
+      if (toggleShortcutsShortcut) {
+        const accelerator = this.shortcutManager.convertShortcutToAccelerator(toggleShortcutsShortcut);
+        if (accelerator && !globalShortcut.isRegistered(accelerator)) {
+          globalShortcut.register(accelerator, () => this.toggleShortcuts());
+          this.globalShortcuts.toggleShortcuts = accelerator;
+        }
+      }
+
+      console.log('Dorganize: Global shortcuts registered');
+    } catch (error) {
+      console.error('Dorganize: Error registering global shortcuts:', error);
+    }
+  }
+
+  unregisterGlobalShortcuts() {
+    try {
+      Object.values(this.globalShortcuts).forEach(accelerator => {
+        if (globalShortcut.isRegistered(accelerator)) {
+          globalShortcut.unregister(accelerator);
+        }
+      });
+      this.globalShortcuts = {};
+    } catch (error) {
+      console.error('Dorganize: Error unregistering global shortcuts:', error);
+    }
+  }
+
+  activateNextWindow() {
+    const enabledWindows = this.dofusWindows.filter(w => w.enabled);
+    if (enabledWindows.length === 0) return;
+
+    const currentActiveIndex = enabledWindows.findIndex(w => w.isActive);
+    const nextIndex = (currentActiveIndex + 1) % enabledWindows.length;
+    const nextWindow = enabledWindows[nextIndex];
+
+    if (nextWindow) {
+      this.windowActivator.activateWindow(nextWindow.title);
+    }
+  }
+
+  toggleShortcuts() {
+    if (this.isTogglingShortcuts) return;
+
+    this.isTogglingShortcuts = true;
+
+    try {
+      this.shortcutsEnabled = !this.shortcutsEnabled;
+      this.store.set('shortcutsEnabled', this.shortcutsEnabled);
+
+      if (this.shortcutsEnabled && !this.isConfiguring) {
+        this.activateShortcuts();
+      } else {
+        this.deactivateShortcuts();
+      }
+
+      this.updateTrayIcon();
+      this.updateTrayMenu();
+
+      console.log(`Dorganize: Shortcuts ${this.shortcutsEnabled ? 'enabled' : 'disabled'}`);
+    } finally {
+      setTimeout(() => {
+        this.isTogglingShortcuts = false;
+      }, 500);
+    }
+  }
+
+  setupIpcHandlers() {
+    // Window data handlers
+    ipcMain.handle('get-dofus-windows', () => {
+      return this.dofusWindows;
+    });
+
+    ipcMain.handle('get-dofus-classes', () => {
+      return this.windowManager.getDofusClasses();
+    });
+
+    ipcMain.handle('get-language', () => {
+      return this.languageManager.getCurrentLanguage();
+    });
+
+    ipcMain.handle('get-settings', () => {
+      return {
+        language: this.languageManager.getCurrentLanguageCode(),
+        shortcutsEnabled: this.shortcutsEnabled,
+        dock: this.store.get('dock', { enabled: false, position: 'SE' })
+      };
+    });
+
+    // Settings handlers
+    ipcMain.handle('save-settings', async (event, settings) => {
+      console.log('Dorganize: Saving settings:', settings);
+
+      // Save individual settings
+      Object.keys(settings).forEach(key => {
+        this.store.set(key, settings[key]);
+      });
+
+      // Handle language changes
+      if (settings.language) {
+        this.changeLanguage(settings.language);
+      }
+
+      // Handle global shortcut changes
+      const globalShortcutChanges = Object.keys(settings).filter(key => key.startsWith('globalShortcuts.'));
       if (globalShortcutChanges.length > 0) {
         console.log('Dorganize: Global shortcuts changed, updating config file...');
         globalShortcutChanges.forEach(key => {
@@ -10,7 +445,7 @@ utChanges = Object.keys(settings).filter(key => key.startsWith('globalShortcuts.
         this.updateTrayMenu();
       }
 
-      // Handle window shortcut changes - now using config file with character names and priority system
+      // Handle window shortcut changes
       const shortcutChanges = Object.keys(settings).filter(key => key.startsWith('shortcuts.'));
       if (shortcutChanges.length > 0) {
         console.log('Dorganize: Window shortcuts changed, updating config file...');
@@ -22,10 +457,10 @@ utChanges = Object.keys(settings).filter(key => key.startsWith('globalShortcuts.
           const window = this.dofusWindows.find(w => w.id === windowId);
           if (window) {
             // Use appropriate priority based on current auto key state
-            const priority = this.shortcutConfig.isAutoKeyEnabled() 
-              ? this.shortcutConfig.config.priorities.AUTO_KEY 
+            const priority = this.shortcutConfig.isAutoKeyEnabled()
+              ? this.shortcutConfig.config.priorities.AUTO_KEY
               : this.shortcutConfig.config.priorities.WINDOW;
-            
+
             this.shortcutConfig.setWindowShortcut(windowId, shortcut, window.character, window.dofusClass, priority);
           }
         });
@@ -72,9 +507,9 @@ utChanges = Object.keys(settings).filter(key => key.startsWith('globalShortcuts.
             this.dockWindow.webContents.send('windows-updated', this.dofusWindows);
           }
 
-          console.log(`IPC: Window ${windowId} activated successfully (dummy)`);
+          console.log(`IPC: Window ${windowId} activated successfully`);
         } else {
-          console.warn(`IPC: Failed to activate window ${windowId} (dummy)`);
+          console.warn(`IPC: Failed to activate window ${windowId}`);
         }
 
         return result;
@@ -93,8 +528,8 @@ utChanges = Object.keys(settings).filter(key => key.startsWith('globalShortcuts.
       console.log(`IPC: set-shortcut called for ${windowId}: ${shortcut}`);
 
       // Validate shortcut before setting - with priority system
-      const priority = this.shortcutConfig.isAutoKeyEnabled() 
-        ? this.shortcutConfig.config.priorities.AUTO_KEY 
+      const priority = this.shortcutConfig.isAutoKeyEnabled()
+        ? this.shortcutConfig.config.priorities.AUTO_KEY
         : this.shortcutConfig.config.priorities.WINDOW;
 
       if (!this.shortcutManager.validateShortcut(shortcut, priority)) {
@@ -116,9 +551,9 @@ utChanges = Object.keys(settings).filter(key => key.startsWith('globalShortcuts.
         return false;
       }
 
-      // Register the shortcut with appropriate priority - MODIFIÉ: utiliser WindowActivator
+      // Register the shortcut with appropriate priority
       return this.shortcutManager.setWindowShortcut(windowId, shortcut, async () => {
-        console.log(`ShortcutManager: Executing shortcut for window ${windowId} (dummy)`);
+        console.log(`ShortcutManager: Executing shortcut for window ${windowId}`);
         const windowTitle = window.title;
         await this.windowActivator.activateWindow(windowTitle);
       }, priority);
@@ -143,10 +578,9 @@ utChanges = Object.keys(settings).filter(key => key.startsWith('globalShortcuts.
 
     ipcMain.handle('organize-windows', (event, layout) => {
       console.log(`IPC: organize-windows called with layout: ${layout}`);
-      // MODIFIÉ: Ne plus utiliser windowManager.organizeWindows, utiliser WindowActivator
-      console.log('IPC: Window organization disabled - using placeholder activator');
+      console.log('IPC: Window organization using placeholder activator');
       this.windowActivator.bringWindowToFront('organization-request');
-      return true; // Simuler le succès
+      return true;
     });
 
     ipcMain.on('show-config', () => {
@@ -175,7 +609,7 @@ utChanges = Object.keys(settings).filter(key => key.startsWith('globalShortcuts.
       return this.shortcutsEnabled;
     });
 
-    // Global shortcuts management - now using config file
+    // Global shortcuts management
     ipcMain.handle('get-global-shortcuts', () => {
       console.log('IPC: get-global-shortcuts called');
       return this.shortcutConfig.getAllGlobalShortcuts();
@@ -239,7 +673,7 @@ utChanges = Object.keys(settings).filter(key => key.startsWith('globalShortcuts.
     // FIX BUG-001: Mark settings as loaded
     this.settingsLoaded = true;
 
-    // Mettre à jour l'icône du tray après le chargement des paramètres
+    // Update the tray icon after loading settings
     if (this.tray) {
       this.updateTrayIcon();
     }
@@ -286,12 +720,12 @@ utChanges = Object.keys(settings).filter(key => key.startsWith('globalShortcuts.
         // Get the priority for this shortcut
         const characterKey = this.shortcutConfig.generateCharacterKey(window.character, window.dofusClass);
         const priority = this.shortcutConfig.getShortcutPriority(characterKey);
-        
+
         console.log(`Dorganize: Linking existing shortcut ${existingShortcut} to window ${window.id} (${window.character}) with priority ${priority}`);
 
-        // MODIFIÉ: utiliser WindowActivator avec priority system
+        // Use WindowActivator with priority system
         const success = this.shortcutManager.setWindowShortcut(window.id, existingShortcut, async () => {
-          console.log(`ShortcutManager: Executing shortcut for window ${window.id} (dummy)`);
+          console.log(`ShortcutManager: Executing shortcut for window ${window.id}`);
           await this.windowActivator.activateWindow(window.title);
         }, priority);
 
@@ -408,7 +842,7 @@ utChanges = Object.keys(settings).filter(key => key.startsWith('globalShortcuts.
   // FIX BUG-002: Proper initiative-based sorting method
   sortWindowsByInitiative() {
     console.log('Dorganize: Sorting windows by initiative');
-    
+
     this.dofusWindows.sort((a, b) => {
       // Sort by initiative (highest first), then by character name
       if (b.initiative !== a.initiative) {
@@ -417,7 +851,7 @@ utChanges = Object.keys(settings).filter(key => key.startsWith('globalShortcuts.
       return a.character.localeCompare(b.character);
     });
 
-    console.log('Dorganize: Windows sorted by initiative:', 
+    console.log('Dorganize: Windows sorted by initiative:',
       this.dofusWindows.map(w => `${w.character}: ${w.initiative}`));
   }
 
