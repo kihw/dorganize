@@ -125,9 +125,13 @@ class Dorganize {
     const lang = this.languageManager.getCurrentLanguage();
     const shortcutsText = this.shortcutsEnabled ? 'Disable Shortcuts' : 'Enable Shortcuts';
 
-    const menu = Menu.buildFromTemplate([
+    const configLabel = this.mainWindow && !this.mainWindow.isDestroyed() && !this.mainWindow.isVisible()
+      ? 'Show Configuration'
+      : 'Configure';
+
+    const menuTemplate = [
       {
-        label: lang.main_configure || 'Configure',
+        label: configLabel,
         click: () => this.showConfigWindow()
       },
       {
@@ -160,37 +164,40 @@ class Dorganize {
         label: lang.main_quit || 'Quit',
         click: () => this.quit()
       }
-    ]);
+    ];
+
+    const menu = Menu.buildFromTemplate(menuTemplate);
 
     this.tray.setContextMenu(menu);
   }
 
   showConfigWindow() {
+    // Si la fenêtre existe mais est cachée, la montrer
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-      this.mainWindow.focus();
-      return;
+      if (!this.mainWindow.isVisible()) {
+        this.mainWindow.show();
+        this.mainWindow.focus();
+        return;
+      } else {
+        this.mainWindow.focus();
+        return;
+      }
     }
 
     console.log('Dorganize: Creating configuration window...');
-
     this.isConfiguring = true;
     this.deactivateShortcuts();
 
     this.mainWindow = new BrowserWindow({
-      width: 1000,
-      height: 700,
-      minWidth: 800,
-      minHeight: 600,
+      width: 1200,
+      height: 800,
       webPreferences: {
         nodeIntegration: true,
-        contextIsolation: false,
-        enableRemoteModule: false
+        contextIsolation: false
       },
-      icon: path.join(__dirname, '../assets/icons/dorganize.png'),
-      title: 'Dorganize - Configuration',
-      titleBarStyle: 'hidden',
-      frame: false,
-      show: false
+      show: false,
+      frame: false, // Pour utiliser la custom title bar
+      titleBarStyle: 'hidden'
     });
 
     this.mainWindow.loadFile(path.join(__dirname, 'renderer/config.html'));
@@ -199,6 +206,7 @@ class Dorganize {
       this.mainWindow.show();
     });
 
+    // Modifier l'événement closed pour ne pas réactiver les raccourcis si minimisé
     this.mainWindow.on('closed', () => {
       this.mainWindow = null;
       this.isConfiguring = false;
@@ -208,10 +216,29 @@ class Dorganize {
       }
     });
 
-    // Send initial data
+    // Gérer l'événement hide (minimisation)
+    this.mainWindow.on('hide', () => {
+      console.log('Dorganize: Configuration window hidden');
+      this.isConfiguring = false;
+    });
+
+    // Gérer l'événement show (restauration)
+    this.mainWindow.on('show', () => {
+      console.log('Dorganize: Configuration window shown');
+      this.isConfiguring = true;
+      this.deactivateShortcuts();
+    });
+
+    // Send initial data when ready
     this.mainWindow.webContents.once('did-finish-load', () => {
+      console.log('ConfigRenderer: Sending initial data to renderer...');
       this.mainWindow.webContents.send('windows-updated', this.dofusWindows);
       this.mainWindow.webContents.send('language-changed', this.languageManager.getCurrentLanguage());
+      this.mainWindow.webContents.send('settings-updated', {
+        shortcutsEnabled: this.shortcutsEnabled,
+        dock: this.store.get('dock', { enabled: false }),
+        language: this.store.get('language', 'FR')
+      });
     });
   }
 
@@ -397,25 +424,38 @@ class Dorganize {
   }
 
   setupIpcHandlers() {
+    console.log('Dorganize: Setting up IPC handlers...');
+
     // Window data handlers
     ipcMain.handle('get-dofus-windows', () => {
+      console.log('IPC: get-dofus-windows called');
+      console.log('IPC: Returning', this.dofusWindows.length, 'windows');
+      console.log('IPC: Windows data:', this.dofusWindows.map(w => ({
+        id: w.id,
+        character: w.character,
+        dofusClass: w.dofusClass,
+        title: w.title
+      })));
       return this.dofusWindows;
     });
 
-    ipcMain.handle('get-dofus-classes', () => {
-      return this.windowManager.getDofusClasses();
-    });
-
     ipcMain.handle('get-language', () => {
+      console.log('IPC: get-language called');
       return this.languageManager.getCurrentLanguage();
     });
 
     ipcMain.handle('get-settings', () => {
+      console.log('IPC: get-settings called');
       return {
-        language: this.languageManager.getCurrentLanguageCode(),
         shortcutsEnabled: this.shortcutsEnabled,
-        dock: this.store.get('dock', { enabled: false, position: 'SE' })
+        dock: this.store.get('dock', { enabled: false }),
+        language: this.store.get('language', 'FR')
       };
+    });
+
+    ipcMain.handle('get-dofus-classes', () => {
+      console.log('IPC: get-dofus-classes called');
+      return this.windowManager.getDofusClasses();
     });
 
     // Settings handlers
@@ -519,9 +559,15 @@ class Dorganize {
       }
     });
 
-    ipcMain.handle('refresh-windows', () => {
+    ipcMain.handle('refresh-windows', async () => {
       console.log('IPC: refresh-windows called');
-      return this.refreshAndSort();
+      try {
+        await this.refreshAndSort();
+        return this.dofusWindows;
+      } catch (error) {
+        console.error('IPC: Error refreshing windows:', error);
+        return [];
+      }
     });
 
     ipcMain.handle('set-shortcut', (event, windowId, shortcut) => {
@@ -656,6 +702,79 @@ class Dorganize {
 
     ipcMain.handle('import-shortcut-config', (event, config) => {
       return this.shortcutConfig.importConfig(config);
+    });
+
+    ipcMain.handle('get-auto-key-settings', () => {
+      console.log('IPC: get-auto-key-settings called');
+      return {
+        enabled: this.shortcutConfig.isAutoKeyEnabled(),
+        pattern: this.shortcutConfig.getAutoKeyPattern(),
+        customPattern: this.shortcutConfig.getAutoKeyCustomPattern()
+      };
+    });
+
+    ipcMain.handle('apply-auto-key-configuration', (event, configData) => {
+      console.log('IPC: apply-auto-key-configuration called');
+      console.log('IPC: Config data received:', configData);
+
+      try {
+        // Enable auto key with the provided settings
+        this.shortcutConfig.setAutoKeyEnabled(configData.enabled);
+        this.shortcutConfig.setAutoKeyPattern(configData.pattern, configData.customPattern);
+
+        // Apply the configuration to windows
+        if (configData.enabled && configData.windows) {
+          this.shortcutConfig.applyAutoKeyConfiguration(configData.windows);
+          // Reload shortcuts
+          this.loadAndRegisterShortcuts();
+        }
+
+        console.log('IPC: Auto Key configuration applied successfully');
+        return true;
+      } catch (error) {
+        console.error('IPC: Error applying auto key configuration:', error);
+        return false;
+      }
+    });
+
+    ipcMain.handle('disable-auto-key', () => {
+      console.log('IPC: disable-auto-key called');
+      this.shortcutConfig.setAutoKeyEnabled(false);
+      // Reload shortcuts to remove auto-generated ones
+      this.loadAndRegisterShortcuts();
+      return true;
+    });
+
+    // Ajouter ces nouveaux handlers
+    ipcMain.handle('minimize-to-tray', () => {
+      console.log('IPC: minimize-to-tray called');
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.hide();
+        console.log('Dorganize: Configuration window minimized to tray');
+
+        // Réactiver les raccourcis si ils étaient activés
+        if (this.shortcutsEnabled) {
+          this.activateShortcuts();
+        }
+
+        // Optionnel: Afficher une notification tray
+        if (this.tray) {
+          this.tray.displayBalloon({
+            iconType: 'info',
+            title: 'Dorganize',
+            content: 'Configuration window minimized to tray'
+          });
+        }
+      }
+      return true;
+    });
+
+    ipcMain.handle('close-config-window', () => {
+      console.log('IPC: close-config-window called');
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.close();
+      }
+      return true;
     });
   }
 
@@ -889,46 +1008,31 @@ class Dorganize {
     this.languageManager.setLanguage(langCode);
     this.store.set('language', langCode);
     this.updateTrayMenu();
+  }
 
+  activateShortcuts() {
+    this.unregisterGlobalShortcuts();
+    this.shortcutsEnabled = true;
+    this.store.set('shortcutsEnabled', true);
+    console.log('Dorganize: Activating shortcuts');
+    this.shortcutManager.activateAll();
+  }
+
+  deactivateShortcuts() {
+    this.shortcutsEnabled = false;
+    this.store.set('shortcutsEnabled', false);
+    console.log('Dorganize: Deactivating shortcuts');
+    this.shortcutManager.deactivateAll();
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
       this.mainWindow.webContents.send('language-changed', this.languageManager.getCurrentLanguage());
     }
-
     if (this.dockWindow && !this.dockWindow.isDestroyed()) {
       this.dockWindow.webContents.send('language-changed', this.languageManager.getCurrentLanguage());
     }
   }
 
-  activateShortcuts() {
-    if (this.shortcutsEnabled) {
-      console.log('Dorganize: Activating shortcuts');
-      this.shortcutManager.activateAll();
-      // Re-register global shortcuts
-      this.registerGlobalShortcuts();
-    }
-  }
-
-  deactivateShortcuts() {
-    console.log('Dorganize: Deactivating shortcuts');
-    this.shortcutManager.deactivateAll();
-
-    // IMPORTANT: Keep the toggle shortcut active even when shortcuts are disabled
-    const toggleShortcutsShortcut = this.shortcutConfig.getGlobalShortcut('toggleShortcuts');
-    if (toggleShortcutsShortcut) {
-      const accelerator = this.shortcutManager.convertShortcutToAccelerator(toggleShortcutsShortcut);
-      if (accelerator && !globalShortcut.isRegistered(accelerator)) {
-        globalShortcut.register(accelerator, () => {
-          this.toggleShortcuts();
-        });
-        this.globalShortcuts.toggleShortcuts = accelerator;
-        console.log('Dorganize: Keeping toggle shortcut active while shortcuts are disabled');
-      }
-    }
-  }
-
   cleanup() {
-    console.log('Dorganize: Cleaning up...');
-    this.shortcutManager.cleanup();
+    console.log('Dorganize: Cleaning up resources...');
 
     // Unregister global shortcuts
     try {

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -20,13 +21,13 @@
             -webkit-app-region: drag;
             user-select: none;
         }
-        
+
         .title-bar-controls {
             display: flex;
             gap: 8px;
             -webkit-app-region: no-drag;
         }
-        
+
         .title-bar-button {
             width: 20px;
             height: 20px;
@@ -39,20 +40,20 @@
             font-size: 12px;
             transition: all 0.2s ease;
         }
-        
+
         .title-bar-button:hover {
             background: rgba(255, 255, 255, 0.2);
         }
-        
+
         .title-bar-close {
             background: #e74c3c;
             color: white;
         }
-        
+
         .title-bar-close:hover {
             background: #c0392b;
         }
-        
+
         .shortcuts-status {
             position: fixed;
             top: 40px;
@@ -66,15 +67,15 @@
             opacity: 0;
             transition: opacity 0.3s ease;
         }
-        
+
         .shortcuts-status.show {
             opacity: 1;
         }
-        
+
         .shortcuts-status.enabled {
             background: rgba(39, 174, 96, 0.9);
         }
-        
+
         .shortcuts-status.disabled {
             background: rgba(231, 76, 60, 0.9);
         }
@@ -221,11 +222,11 @@
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
 
-        .toggle-container input:checked + .toggle-slider {
+        .toggle-container input:checked+.toggle-slider {
             background: #27ae60;
         }
 
-        .toggle-container input:checked + .toggle-slider::after {
+        .toggle-container input:checked+.toggle-slider::after {
             transform: translateX(26px);
         }
 
@@ -245,18 +246,23 @@
         .btn-success:hover {
             background: #2ecc71;
         }
-
     </style>
 </head>
+
 <body>
     <!-- Custom title bar -->
     <div class="custom-title-bar">
-        <span>Dorganize</span>
+        <span>Dorganize - Configuration</span>
         <div class="title-bar-controls">
-            <button class="title-bar-button title-bar-close" onclick="window.close()">×</button>
+            <button class="title-bar-button minimize-button" onclick="minimizeToTray()" title="Minimize to Tray">
+                −
+            </button>
+            <button class="title-bar-button close-button" onclick="closeWindow()" title="Close">
+                ×
+            </button>
         </div>
     </div>
-    
+
     <!-- Shortcuts status indicator -->
     <div id="shortcuts-status" class="shortcuts-status">
         <span id="shortcuts-status-text">Shortcuts: Enabled</span>
@@ -291,7 +297,7 @@
                 <button id="toggle-shortcuts-btn" class="btn btn-secondary" title="Toggle Shortcuts">
                     <span id="toggle-shortcuts-text">Disable Shortcuts</span>
                 </button>
-                
+
                 <!-- AZERTYUI Button -->
                 <button id="azertyui-btn" class="btn btn-secondary" title="AZERTYUI Feature">
                     <span>AZERTYUI</span>
@@ -303,7 +309,8 @@
             <div id="no-windows" class="no-windows" style="display: none;">
                 <div class="no-windows-icon">🎮</div>
                 <h3>No Dofus Windows Detected</h3>
-                <p id="no-windows-text">No Dofus windows detected. Make sure Dofus is running and click Refresh to scan for windows.</p>
+                <p id="no-windows-text">No Dofus windows detected. Make sure Dofus is running and click Refresh to scan
+                    for windows.</p>
                 <button class="btn btn-primary" onclick="configRenderer.refreshWindows()">
                     <span>🔄 Refresh Now</span>
                 </button>
@@ -318,11 +325,11 @@
             <div class="footer-content">
                 <div class="dock-settings">
                     <label class="dock-toggle">
-                        <input type="checkbox" id="dock-enabled"> 
+                        <input type="checkbox" id="dock-enabled">
                         <span class="toggle-slider"></span>
                         <span id="dock-label">Enable navigation dock</span>
                     </label>
-                    
+
                     <div class="dock-position-group">
                         <label for="dock-position">Position:</label>
                         <select id="dock-position" class="dock-position-select">
@@ -335,7 +342,7 @@
                         </select>
                     </div>
                 </div>
-                
+
                 <div class="footer-stats">
                     <span id="window-count">0 windows detected</span>
                 </div>
@@ -348,11 +355,11 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>⚡ Auto Key Configuration</h3>
-                <button class="modal-close" onclick="configRenderer.closeAutoKeyModal()">×</button>
+                <button class="modal-close" onclick="window.closeAutoKeyModal()">×</button>
             </div>
             <div class="modal-body">
                 <p>Automatically assign keyboard shortcuts based on initiative order:</p>
-                
+
                 <!-- Enable/Disable Auto Key -->
                 <div class="auto-key-enable">
                     <label class="toggle-container">
@@ -368,17 +375,21 @@
                         <div class="preset-section">
                             <h4>Choose a Preset:</h4>
                             <div class="preset-buttons">
-                                <button class="btn btn-secondary preset-btn" onclick="configRenderer.selectAutoKeyPreset('numbers')">
-                                    Numbers (1, 2, 3...)
+                                <button class="btn btn-secondary preset-btn"
+                                    onclick="window.selectAutoKeyPreset('numbers')">
+                                    1, 2, 3...
                                 </button>
-                                <button class="btn btn-secondary preset-btn" onclick="configRenderer.selectAutoKeyPreset('function')">
-                                    Function Keys (F1, F2, F3...)
+                                <button class="btn btn-secondary preset-btn"
+                                    onclick="window.selectAutoKeyPreset('function')">
+                                    F1, F2, F3...
                                 </button>
-                                <button class="btn btn-secondary preset-btn" onclick="configRenderer.selectAutoKeyPreset('numpad')">
-                                    Numpad (Num1, Num2, Num3...)
+                                <button class="btn btn-secondary preset-btn"
+                                    onclick="window.selectAutoKeyPreset('azertyui')">
+                                    A, Z, E, R...
                                 </button>
-                                <button class="btn btn-secondary preset-btn" onclick="configRenderer.selectAutoKeyPreset('azertyui')">
-                                    AZERTYUI (A, Z, E, R, T, Y, U, I)
+                                <button class="btn btn-secondary preset-btn"
+                                    onclick="window.selectAutoKeyPreset('custom')">
+                                    Custom
                                 </button>
                             </div>
                         </div>
@@ -387,14 +398,13 @@
                         <div class="custom-section">
                             <h4>Or Create Custom Pattern:</h4>
                             <div class="custom-pattern">
-                                <label for="custom-pattern-input">Pattern (use {n} for position):</label>
-                                <input type="text" id="custom-pattern-input" class="form-input" 
-                                       placeholder="Ctrl+Alt+{n}" value="Ctrl+Alt+{n}">
-                                <button class="btn btn-secondary" onclick="configRenderer.selectAutoKeyPreset('custom')">
-                                    Use Custom Pattern
-                                </button>
+                                <input type="text" id="custom-pattern-input" placeholder="Ctrl+Alt+{n}"
+                                    value="Ctrl+Alt+{n}">
+                                <button class="btn btn-secondary"
+                                    onclick="window.autoKeyManager.selectPreset('custom')">Use Custom</button>
                             </div>
-                            <p><small>Examples: <code>Ctrl+{n}</code>, <code>Alt+F{n}</code>, <code>Shift+{n}</code>, <code>AZERTYUI pattern</code></small></p>
+                            <p><small>Examples: <code>Ctrl+{n}</code>, <code>Alt+F{n}</code>,
+                                    <code>Shift+{n}</code></small></p>
                         </div>
                     </div>
 
@@ -411,7 +421,8 @@
                     <!-- Manual Override Section -->
                     <div class="manual-override-section">
                         <h4>Manual Adjustments:</h4>
-                        <p><small>Click on any shortcut below to customize it individually while keeping Auto Key enabled:</small></p>
+                        <p><small>Click on any shortcut below to customize it individually while keeping Auto Key
+                                enabled:</small></p>
                         <div id="manual-shortcuts-list">
                             <!-- Manual shortcut items will be populated here -->
                         </div>
@@ -419,9 +430,14 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button id="auto-key-apply" class="btn btn-primary" onclick="configRenderer.applyAutoKeyConfiguration()">Apply Configuration</button>
-                <button id="auto-key-disable" class="btn btn-danger" onclick="configRenderer.disableAutoKey()" style="display: none;">Disable Auto Key</button>
-                <button class="btn btn-secondary" onclick="configRenderer.closeAutoKeyModal()">Close</button>
+                <button id="auto-key-apply" class="btn btn-primary" onclick="window.applyAutoKeyConfiguration()">
+                    Apply Configuration
+                </button>
+                <button id="auto-key-disable" class="btn btn-danger" onclick="window.disableAutoKey()"
+                    style="display: none;">Disable Auto Key</button>
+                <button class="btn btn-secondary" onclick="window.closeAutoKeyModal()">
+                    Close
+                </button>
             </div>
         </div>
     </div>
@@ -439,7 +455,7 @@
                 <div class="shortcut-examples">
                     <p><strong>Examples:</strong></p>
                     <p>
-                        <code>A</code> <code>F1</code> <code>Space</code> <code>Ctrl+1</code> 
+                        <code>A</code> <code>F1</code> <code>Space</code> <code>Ctrl+1</code>
                         <code>Alt+F1</code> <code>Shift+Q</code> <code>Ctrl+Alt+S</code>
                         <code>;</code> <code>=</code> <code>,</code> <code>.</code> <code>/</code>
                         <code>AZERTYUI</code>
@@ -463,30 +479,36 @@
             </div>
             <div class="modal-body">
                 <p>Configure global shortcuts that work system-wide:</p>
-                
+
                 <div class="global-shortcut-item">
                     <div class="global-shortcut-label">
                         <h4>Next Window</h4>
                         <p>Cycle to the next Dofus window (by initiative order)</p>
                     </div>
                     <div class="global-shortcut-controls">
-                        <div id="next-window-shortcut-display" class="shortcut-display" onclick="configRenderer.setGlobalShortcut('nextWindow')">
+                        <div id="next-window-shortcut-display" class="shortcut-display"
+                            onclick="configRenderer.setGlobalShortcut('nextWindow')">
                             Ctrl+Tab
                         </div>
-                        <button class="btn btn-danger btn-small" onclick="configRenderer.removeGlobalShortcut('nextWindow')" title="Remove shortcut">×</button>
+                        <button class="btn btn-danger btn-small"
+                            onclick="configRenderer.removeGlobalShortcut('nextWindow')"
+                            title="Remove shortcut">×</button>
                     </div>
                 </div>
-                
+
                 <div class="global-shortcut-item">
                     <div class="global-shortcut-label">
                         <h4>Toggle Shortcuts</h4>
                         <p>Enable or disable all shortcuts</p>
                     </div>
                     <div class="global-shortcut-controls">
-                        <div id="toggle-shortcuts-shortcut-display" class="shortcut-display" onclick="configRenderer.setGlobalShortcut('toggleShortcuts')">
+                        <div id="toggle-shortcuts-shortcut-display" class="shortcut-display"
+                            onclick="configRenderer.setGlobalShortcut('toggleShortcuts')">
                             Ctrl+Shift+D
                         </div>
-                        <button class="btn btn-danger btn-small" onclick="configRenderer.removeGlobalShortcut('toggleShortcuts')" title="Remove shortcut">×</button>
+                        <button class="btn btn-danger btn-small"
+                            onclick="configRenderer.removeGlobalShortcut('toggleShortcuts')"
+                            title="Remove shortcut">×</button>
                     </div>
                 </div>
             </div>
@@ -501,7 +523,8 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Select Language</h3>
-                <button class="modal-close" onclick="document.getElementById('language-modal').style.display='none'">×</button>
+                <button class="modal-close"
+                    onclick="document.getElementById('language-modal').style.display='none'">×</button>
             </div>
             <div class="modal-body">
                 <div class="language-options">
@@ -512,7 +535,7 @@
                             <span>Français</span>
                         </div>
                     </label>
-                    
+
                     <label class="language-option">
                         <input type="radio" name="language" value="EN">
                         <div class="option-content">
@@ -520,7 +543,7 @@
                             <span>English</span>
                         </div>
                     </label>
-                    
+
                     <label class="language-option">
                         <input type="radio" name="language" value="DE">
                         <div class="option-content">
@@ -528,7 +551,7 @@
                             <span>Deutsch</span>
                         </div>
                     </label>
-                    
+
                     <label class="language-option">
                         <input type="radio" name="language" value="ES">
                         <div class="option-content">
@@ -536,7 +559,7 @@
                             <span>Español</span>
                         </div>
                     </label>
-                    
+
                     <label class="language-option">
                         <input type="radio" name="language" value="IT">
                         <div class="option-content">
@@ -558,7 +581,8 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Organize Windows</h3>
-                <button class="modal-close" onclick="document.getElementById('organize-modal').style.display='none'">×</button>
+                <button class="modal-close"
+                    onclick="document.getElementById('organize-modal').style.display='none'">×</button>
             </div>
             <div class="modal-body">
                 <p>Choose how to arrange your Dofus windows:</p>
@@ -568,13 +592,13 @@
                         <h4>Grid Layout</h4>
                         <p>Arrange in a grid pattern</p>
                     </button>
-                    
+
                     <button class="organize-option" onclick="configRenderer.organizeWindows('horizontal')">
                         <div class="organize-icon">⊟</div>
                         <h4>Horizontal</h4>
                         <p>Side by side arrangement</p>
                     </button>
-                    
+
                     <button class="organize-option" onclick="configRenderer.organizeWindows('vertical')">
                         <div class="organize-icon">⊢</div>
                         <h4>Vertical</h4>
@@ -583,7 +607,8 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="document.getElementById('organize-modal').style.display='none'">Close</button>
+                <button class="btn btn-secondary"
+                    onclick="document.getElementById('organize-modal').style.display='none'">Close</button>
             </div>
         </div>
     </div>
@@ -609,4 +634,5 @@
 
     <script src="config.js"></script>
 </body>
+
 </html>

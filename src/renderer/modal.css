@@ -1,17 +1,19 @@
 /* Enhanced Modal Styles */
 .modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    backdrop-filter: blur(5px);
-    animation: modalFadeIn 0.3s ease;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background-color: rgba(0, 0, 0, 0.5) !important;
+    display: none !important;
+    justify-content: center !important;
+    align-items: center !important;
+    z-index: 1000 !important;
+}
+
+.modal.show {
+    display: flex !important;
 }
 
 @keyframes modalFadeIn {
@@ -19,6 +21,7 @@
         opacity: 0;
         backdrop-filter: blur(0px);
     }
+
     to {
         opacity: 1;
         backdrop-filter: blur(5px);
@@ -27,11 +30,10 @@
 
 .modal-content {
     background: white;
-    border-radius: 16px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    max-width: 90vw;
-    max-height: 90vh;
-    overflow: hidden;
+    border-radius: 8px;
+    max-width: 90%;
+    max-height: 90%;
+    overflow-y: auto;
     animation: modalSlideIn 0.3s ease;
     position: relative;
 }
@@ -41,6 +43,7 @@
         transform: translateY(30px) scale(0.95);
         opacity: 0;
     }
+
     to {
         transform: translateY(0) scale(1);
         opacity: 1;
@@ -127,9 +130,17 @@
 }
 
 @keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
-    70% { box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+    0% {
+        box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(231, 76, 60, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(231, 76, 60, 0);
+    }
 }
 
 .shortcut-examples {
@@ -179,11 +190,11 @@
     display: none;
 }
 
-.game-type-option input[type="radio"]:checked + .option-content {
+.game-type-option input[type="radio"]:checked+.option-content {
     color: #3498db;
 }
 
-.game-type-option input[type="radio"]:checked + .option-content .option-icon {
+.game-type-option input[type="radio"]:checked+.option-content .option-icon {
     background: linear-gradient(135deg, #3498db, #2980b9);
     color: white;
 }
@@ -250,7 +261,7 @@
     display: none;
 }
 
-.language-option input[type="radio"]:checked + .option-content {
+.language-option input[type="radio"]:checked+.option-content {
     color: #3498db;
     font-weight: 600;
 }
@@ -416,11 +427,11 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.dock-toggle input:checked + .toggle-slider {
+.dock-toggle input:checked+.toggle-slider {
     background: #27ae60;
 }
 
-.dock-toggle input:checked + .toggle-slider::after {
+.dock-toggle input:checked+.toggle-slider::after {
     transform: translateX(26px);
 }
 
@@ -478,30 +489,30 @@
         margin: 20px;
         max-width: calc(100vw - 40px);
     }
-    
+
     .class-modal-content {
         min-width: auto;
     }
-    
+
     .class-grid {
         grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
         gap: 12px;
     }
-    
+
     .game-type-options,
     .language-options {
         grid-template-columns: 1fr;
     }
-    
+
     .organize-options {
         grid-template-columns: 1fr;
     }
-    
+
     .footer-content {
         flex-direction: column;
         text-align: center;
     }
-    
+
     .dock-settings {
         flex-direction: column;
         gap: 12px;
@@ -509,26 +520,27 @@
 }
 
 @media (max-width: 480px) {
+
     .modal-header,
     .modal-body,
     .modal-footer {
         padding: 16px;
     }
-    
+
     .class-grid {
         grid-template-columns: repeat(3, 1fr);
     }
-    
+
     .class-avatar {
         width: 48px;
         height: 48px;
     }
-    
+
     .option-content {
         flex-direction: column;
         gap: 8px;
     }
-    
+
     .option-icon {
         width: 40px;
         height: 40px;
@@ -542,21 +554,21 @@
         background: #2c3e50;
         color: #ecf0f1;
     }
-    
+
     .modal-header {
         background: linear-gradient(135deg, #34495e, #2c3e50);
         border-bottom-color: #34495e;
     }
-    
+
     .modal-header h3 {
         color: #ecf0f1;
     }
-    
+
     .modal-footer {
         background: #34495e;
         border-top-color: #34495e;
     }
-    
+
     .game-type-option,
     .language-option,
     .organize-option,
@@ -565,24 +577,24 @@
         border-color: #4a5f7a;
         color: #ecf0f1;
     }
-    
+
     .game-type-option:hover,
     .language-option:hover,
     .organize-option:hover,
     .class-option:hover {
         background: #4a5f7a;
     }
-    
+
     .option-icon {
         background: #4a5f7a;
         color: #ecf0f1;
     }
-    
+
     .shortcut-examples {
         background: #34495e;
         border-left-color: #3498db;
     }
-    
+
     .shortcut-examples code {
         background: #4a5f7a;
         color: #ecf0f1;

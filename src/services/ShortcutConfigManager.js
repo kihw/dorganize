@@ -1,34 +1,28 @@
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { app } = require('electron');
 
 class ShortcutConfigManager {
   constructor() {
-    // Get user data directory
-    const userDataPath = app.getPath('userData');
-    this.configDir = path.join(userDataPath, 'config');
-    this.configFile = path.join(this.configDir, 'shortcuts.json');
-
-    // Default configuration structure
+    this.configFile = path.join(os.homedir(), '.dorganize', 'shortcuts.json');
     this.config = {
-      version: '1.1.0',
-      lastUpdated: new Date().toISOString(),
-      priorities: {
-        AUTO_KEY: 3,
-        GLOBAL: 2,
-        WINDOW: 1
-      },
       shortcuts: {
-        characters: {},
         global: {},
+        characters: {},
         autoKey: {
           enabled: false,
           pattern: 'numbers',
-          customPattern: 'Ctrl+Alt+{n}',
-          assignments: {}
+          customPattern: 'Ctrl+Alt+{n}'
         }
       },
-      characters: {}
+      characters: {},
+      priorities: {
+        GLOBAL: 1,
+        AUTO_KEY: 2,
+        WINDOW: 3
+      },
+      lastUpdated: new Date().toISOString()
     };
 
     this.ensureConfigDirectory();
@@ -37,8 +31,9 @@ class ShortcutConfigManager {
 
   ensureConfigDirectory() {
     try {
-      if (!fs.existsSync(this.configDir)) {
-        fs.mkdirSync(this.configDir, { recursive: true });
+      const configDir = path.dirname(this.configFile);
+      if (!fs.existsSync(configDir)) {
+        fs.mkdirSync(configDir, { recursive: true });
         console.log('ShortcutConfigManager: Created config directory');
       }
     } catch (error) {
@@ -228,16 +223,20 @@ class ShortcutConfigManager {
 
   // Auto Key Configuration
   isAutoKeyEnabled() {
-    return this.config.shortcuts.autoKey.enabled || false;
+    return this.config.shortcuts.autoKey.enabled;
+  }
+
+  getAutoKeyPattern() {
+    return this.config.shortcuts.autoKey.pattern;
+  }
+
+  getAutoKeyCustomPattern() {
+    return this.config.shortcuts.autoKey.customPattern;
   }
 
   setAutoKeyEnabled(enabled) {
     this.config.shortcuts.autoKey.enabled = enabled;
     return this.saveConfig();
-  }
-
-  getAutoKeyPattern() {
-    return this.config.shortcuts.autoKey.pattern || 'numbers';
   }
 
   setAutoKeyPattern(pattern, customPattern = null) {
@@ -248,19 +247,15 @@ class ShortcutConfigManager {
     return this.saveConfig();
   }
 
-  getAutoKeyCustomPattern() {
-    return this.config.shortcuts.autoKey.customPattern || 'Ctrl+Alt+{n}';
-  }
-
   applyAutoKeyConfiguration(windows) {
     if (!this.isAutoKeyEnabled()) {
-      console.log('ShortcutConfigManager: Auto Key is disabled, skipping configuration');
+      console.log('ShortcutConfigManager: AutoKey is disabled, skipping configuration');
       return false;
     }
 
-    console.log('ShortcutConfigManager: Applying Auto Key configuration...');
+    console.log('ShortcutConfigManager: Applying AutoKey configuration to', windows.length, 'windows');
 
-    // Sort windows by initiative (highest first), then by character name
+    // Sort windows by initiative (highest first)
     const sortedWindows = [...windows].sort((a, b) => {
       if (b.initiative !== a.initiative) {
         return b.initiative - a.initiative;
@@ -268,98 +263,46 @@ class ShortcutConfigManager {
       return a.character.localeCompare(b.character);
     });
 
-    const pattern = this.getAutoKeyPattern();
-    const customPattern = this.getAutoKeyCustomPattern();
-
-    console.log(`ShortcutConfigManager: Using pattern "${pattern}" for ${sortedWindows.length} windows`);
-
+    // Apply shortcuts based on initiative order
     sortedWindows.forEach((window, index) => {
       const position = index + 1;
-      let shortcut = '';
+      const shortcut = this.generateShortcutForPosition(position);
 
-      switch (pattern) {
-        case 'numbers':
-          shortcut = position.toString();
-          break;
-        case 'function':
-          shortcut = `F${position}`;
-          break;
-        case 'numpad':
-          shortcut = `Num${position}`;
-          break;
-        case 'custom':
-          shortcut = customPattern.replace('{n}', position.toString());
-          break;
-        default:
-          console.warn(`ShortcutConfigManager: Unknown pattern "${pattern}", using numbers`);
-          shortcut = position.toString();
-      }
-
-      // Set the shortcut with AUTO_KEY priority
-      const success = this.setWindowShortcut(
-        window.id,
-        shortcut,
-        window.character,
-        window.dofusClass,
-        this.config.priorities.AUTO_KEY
-      );
-
-      if (success) {
-        console.log(`ShortcutConfigManager: Auto assigned "${shortcut}" to ${window.character} (position ${position})`);
-        // Update the window object with the shortcut
-        window.shortcut = shortcut;
-      } else {
-        console.warn(`ShortcutConfigManager: Failed to auto assign shortcut to ${window.character}`);
+      if (shortcut) {
+        this.setWindowShortcut(
+          window.id,
+          shortcut,
+          window.character,
+          window.dofusClass,
+          this.config.priorities.AUTO_KEY
+        );
+        console.log(`ShortcutConfigManager: Assigned ${shortcut} to ${window.character} (initiative: ${window.initiative})`);
       }
     });
 
+    this.saveConfig();
     return true;
   }
 
-  getAutoKeyPreview(windows) {
-    const sortedWindows = [...windows].sort((a, b) => {
-      if (b.initiative !== a.initiative) {
-        return b.initiative - a.initiative;
-      }
-      return a.character.localeCompare(b.character);
-    });
-
+  generateShortcutForPosition(position) {
     const pattern = this.getAutoKeyPattern();
-    const customPattern = this.getAutoKeyCustomPattern();
-    const preview = [];
 
-    sortedWindows.forEach((window, index) => {
-      const position = index + 1;
-      let shortcut = '';
-
-      switch (pattern) {
-        case 'numbers':
-          shortcut = position.toString();
-          break;
-        case 'function':
-          shortcut = `F${position}`;
-          break;
-        case 'numpad':
-          shortcut = `Num${position}`;
-          break;
-        case 'custom':
-          shortcut = customPattern.replace('{n}', position.toString());
-          break;
-        default:
-          shortcut = position.toString();
-      }
-
-      preview.push({
-        position: position,
-        character: window.character,
-        class: window.dofusClass,
-        initiative: window.initiative,
-        shortcut: shortcut,
-        windowId: window.id
-      });
-    });
-
-    return preview;
+    switch (pattern) {
+      case 'numbers':
+        return position.toString();
+      case 'function':
+        return `F${position}`;
+      case 'numpad':
+        return `Num${position}`;
+      case 'azertyui':
+        const azertyuiKeys = ['A', 'Z', 'E', 'R', 'T', 'Y', 'U', 'I'];
+        return azertyuiKeys[position - 1] || `Pos${position}`;
+      case 'custom':
+        const customPattern = this.getAutoKeyCustomPattern();
+        return customPattern.replace('{n}', position.toString());
+      default:
+        return position.toString();
+    }
   }
 
   // Utility methods

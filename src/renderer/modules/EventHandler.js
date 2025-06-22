@@ -41,7 +41,7 @@ class EventHandler {
     // Global keyboard shortcuts
     document.addEventListener('keydown', (e) => this.handleGlobalKeyDown(e));
     document.addEventListener('keyup', (e) => this.handleGlobalKeyUp(e));
-    
+
     // Prevent context menu
     document.addEventListener('contextmenu', (e) => e.preventDefault());
   }
@@ -50,10 +50,10 @@ class EventHandler {
     // Window focus/blur
     window.addEventListener('focus', () => this.handleWindowFocus());
     window.addEventListener('blur', () => this.handleWindowBlur());
-    
+
     // Window resize
     window.addEventListener('resize', () => this.handleWindowResize());
-    
+
     // Before unload
     window.addEventListener('beforeunload', (e) => this.handleBeforeUnload(e));
   }
@@ -62,7 +62,8 @@ class EventHandler {
   async handleRefresh() {
     try {
       console.log('EventHandler: Refresh button clicked');
-      await this.configRenderer.windowRenderer.refreshWindows();
+      // CORRECTION: Appeler refreshWindows() sur configRenderer, pas sur windowRenderer
+      await this.configRenderer.refreshWindows();
     } catch (error) {
       console.error('EventHandler: Error during refresh:', error);
       this.configRenderer.uiManager.showErrorMessage('Failed to refresh windows');
@@ -159,7 +160,12 @@ class EventHandler {
     console.log('EventHandler: Windows updated event received with', windows.length, 'windows');
     this.configRenderer.windows = windows;
     this.configRenderer.windowRenderer.renderWindows();
-    this.configRenderer.autoKeyManager.onWindowsUpdated();
+
+    // CORRECTION: Appeler updatePreview au lieu de onWindowsUpdated
+    if (this.configRenderer.autoKeyManager) {
+      this.configRenderer.autoKeyManager.updatePreview();
+    }
+
     this.configRenderer.uiManager.updateWindowCount();
   }
 
@@ -197,7 +203,7 @@ class EventHandler {
 
   handleBeforeUnload(e) {
     const hasUnsavedChanges = this.configRenderer.settingsManager.hasUnsavedChanges();
-    
+
     if (hasUnsavedChanges) {
       e.preventDefault();
       e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
@@ -333,7 +339,7 @@ class EventHandler {
     const start = performance.now();
     const result = fn();
     const end = performance.now();
-    
+
     console.log(`EventHandler: ${operation} took ${end - start} milliseconds`);
     return result;
   }
@@ -342,10 +348,10 @@ class EventHandler {
   throttle(fn, delay) {
     let timeoutId;
     let lastExecTime = 0;
-    
+
     return function (...args) {
       const currentTime = Date.now();
-      
+
       if (currentTime - lastExecTime > delay) {
         fn.apply(this, args);
         lastExecTime = currentTime;
@@ -361,7 +367,7 @@ class EventHandler {
 
   debounce(fn, delay) {
     let timeoutId;
-    
+
     return function (...args) {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => fn.apply(this, args), delay);
@@ -372,7 +378,7 @@ class EventHandler {
   handleComponentError(error, componentName) {
     console.error(`EventHandler: Error in ${componentName}:`, error);
     this.configRenderer.uiManager.showErrorMessage(`Error in ${componentName}: ${error.message}`);
-    
+
     // Could send error reports to a logging service here
     this.reportError(error, componentName);
   }
@@ -391,7 +397,7 @@ class EventHandler {
       url: window.location.href,
       appVersion: '0.4.1'
     };
-    
+
     console.log('Error Report:', errorReport);
     // In a real app, this would send to an error tracking service
   }
@@ -399,7 +405,7 @@ class EventHandler {
   cleanup() {
     // Remove all event listeners if needed
     console.log('EventHandler: Cleaning up event listeners');
-    
+
     // Clear any pending timeouts
     if (this.saveTimeout) {
       clearTimeout(this.saveTimeout);
@@ -407,4 +413,6 @@ class EventHandler {
   }
 }
 
-module.exports = EventHandler;
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = EventHandler;
+}

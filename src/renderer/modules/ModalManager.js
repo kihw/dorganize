@@ -6,7 +6,7 @@ class ModalManager {
     this.configRenderer = configRenderer;
     this.currentClassWindowId = null;
     this.elements = {};
-    
+
     this.initializeElements();
     this.setupEventListeners();
   }
@@ -17,15 +17,15 @@ class ModalManager {
       languageModal: document.getElementById('language-modal'),
       languageSave: document.getElementById('language-save'),
       languageCancel: document.getElementById('language-cancel'),
-      
+
       // Class Modal
       classModal: document.getElementById('class-modal'),
       classGrid: document.getElementById('class-grid'),
       classCancel: document.getElementById('class-cancel'),
-      
+
       // Organize Modal
       organizeModal: document.getElementById('organize-modal'),
-      
+
       // Global Shortcuts Modal
       globalShortcutsModal: document.getElementById('global-shortcuts-modal'),
       nextWindowShortcutDisplay: document.getElementById('next-window-shortcut-display'),
@@ -67,7 +67,7 @@ class ModalManager {
   // Class Modal Methods
   showClassModal(windowId) {
     this.currentClassWindowId = windowId;
-    
+
     if (!this.elements.classGrid || !this.elements.classModal) {
       console.error('ModalManager: Class modal elements not found');
       return;
@@ -113,14 +113,14 @@ class ModalManager {
         const { ipcRenderer } = require('electron');
         const settings = { [`classes.${this.currentClassWindowId}`]: classKey };
         await ipcRenderer.invoke('save-settings', settings);
-        
+
         const window = this.configRenderer.windows.find(w => w.id === this.currentClassWindowId);
         if (window) {
           window.dofusClass = classKey;
           window.avatar = this.configRenderer.dofusClasses[classKey].avatar;
           this.configRenderer.renderWindows();
         }
-        
+
         setTimeout(() => {
           this.closeClassModal();
         }, 300);
@@ -220,4 +220,6 @@ class ModalManager {
   }
 }
 
-module.exports = ModalManager;
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = ModalManager;
+}

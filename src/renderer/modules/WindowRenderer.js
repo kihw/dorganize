@@ -4,108 +4,120 @@
 class WindowRenderer {
   constructor(configRenderer) {
     this.configRenderer = configRenderer;
+    console.log('WindowRenderer: Initialized');
+  }
+
+  // Ajouter cette méthode pour éviter les erreurs futures
+  async refreshWindows() {
+    console.log('WindowRenderer: Delegating refresh to ConfigRenderer...');
+    return await this.configRenderer.refreshWindows();
   }
 
   renderWindows() {
-    const windows = this.configRenderer.getWindows();
-    const elements = this.configRenderer.getElements();
+    const windows = this.configRenderer.windows || [];
+    console.log('WindowRenderer: Rendering', windows.length, 'windows');
+    console.log('WindowRenderer: Windows data:', windows);
+
+    // Find elements directly instead of using configRenderer.elements
+    const windowsList = document.getElementById('windows-list');
+    const noWindows = document.getElementById('no-windows');
+    const windowCount = document.getElementById('window-count');
+
+    console.log('WindowRenderer: Found elements:', {
+      windowsList: !!windowsList,
+      noWindows: !!noWindows,
+      windowCount: !!windowCount
+    });
 
     if (!windows || windows.length === 0) {
-      this.showNoWindows();
+      console.log('WindowRenderer: No windows to display, showing no-windows message');
+      if (windowsList) {
+        windowsList.style.display = 'none';
+        windowsList.innerHTML = '';
+      }
+      if (noWindows) {
+        noWindows.style.display = 'block';
+      }
+      if (windowCount) {
+        windowCount.textContent = '0 windows detected';
+      }
       return;
     }
 
-    this.hideNoWindows();
+    console.log('WindowRenderer: Displaying', windows.length, 'windows');
 
-    // Sort windows by initiative (highest first) then by character name
-    const sortedWindows = [...windows].sort((a, b) => {
-      if (b.initiative !== a.initiative) {
-        return b.initiative - a.initiative;
-      }
-      return a.character.localeCompare(b.character);
-    });
+    if (windowsList) {
+      windowsList.style.display = 'block';
+      // Generate HTML for all windows
+      const windowsHTML = windows.map((window, index) =>
+        this.renderWindowItem(window, index + 1)
+      ).join('');
+      windowsList.innerHTML = windowsHTML;
+      console.log('WindowRenderer: HTML updated with', windows.length, 'windows');
+    }
 
-    let windowsHTML = '';
-    sortedWindows.forEach((window, index) => {
-      windowsHTML += this.renderWindowItem(window, index + 1);
-    });
+    if (noWindows) {
+      noWindows.style.display = 'none';
+    }
 
-    elements.windowsList.innerHTML = windowsHTML;
-    elements.windowCount.textContent = `${windows.length} windows detected`;
-
-    this.addWindowEventListeners();
+    if (windowCount) {
+      windowCount.textContent = `${windows.length} window(s) detected`;
+    }
   }
 
   renderWindowItem(window, order) {
-    const dofusClasses = this.configRenderer.getDofusClasses();
-    const language = this.configRenderer.getLanguage();
-    
-    const displayName = window.customName || window.character;
-    const className = dofusClasses[window.dofusClass]?.name || 'Feca';
-    const shortcutText = window.shortcut || (language.shortcut_none || 'No shortcut');
-    const avatarSrc = `../../assets/avatars/${window.avatar}.jpg`;
+    // Ensure we have default values
+    const displayName = window.customName || window.character || 'Unknown Character';
+    const className = window.dofusClass || 'Unknown Class';
+    const shortcutText = window.shortcut || 'No shortcut';
+    const avatarSrc = `../../assets/avatars/${window.avatar || '1'}.jpg`;
     const isActive = window.isActive ? 'active' : '';
     const isDisabled = !window.enabled ? 'disabled' : '';
+    const initiative = window.initiative || 0;
+
+    console.log(`WindowRenderer: Rendering window ${order}: ${displayName} (${className})`);
 
     return `
       <div class="window-item ${isActive} ${isDisabled}" data-window-id="${window.id}" data-class="${window.dofusClass}">
         <div class="window-header">
           <div class="window-avatar" onclick="configRenderer.activateWindow('${window.id}')" title="Click to activate window">
+            <img src="${avatarSrc}" alt="${className}" onerror="this.src='../../assets/avatars/1.jpg'">
             <div class="initiative-order-badge">${order}</div>
-            <img src="${avatarSrc}" alt="${displayName}" onerror="this.src='../../assets/avatars/1.jpg'">
           </div>
           <div class="window-info">
-            <div class="window-title">${window.title}</div>
-            <div class="window-character">${displayName}</div>
-          </div>
-          <div class="window-controls">
-            <button class="btn btn-small" onclick="configRenderer.activateWindow('${window.id}')" title="Activate window">
-              <span>⚡</span>
-            </button>
-          </div>
-        </div>
-        <div class="window-details">
-          <div class="detail-item">
-            <div class="detail-label">Character</div>
-            <div class="detail-value">
-              <input type="text" 
-                     class="character-name-input" 
-                     value="${displayName}" 
-                     data-window-id="${window.id}"
+            <div class="window-name-container">
+              <input type="text" class="window-name" value="${displayName}" 
                      onchange="configRenderer.updateCharacterName('${window.id}', this.value)"
                      placeholder="Character name">
-            </div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-label">Class</div>
-            <div class="detail-value">
-              <div class="class-display" onclick="modalManager.showClassModal('${window.id}')" title="Click to change class">
+              <div class="window-class" onclick="configRenderer.showClassModal('${window.id}')" title="Click to change class">
                 ${className}
               </div>
             </div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-label">Initiative</div>
-            <div class="detail-value">
-              <input type="number" 
-                     class="initiative-input" 
-                     value="${window.initiative || 0}" 
-                     min="0" 
-                     max="9999"
-                     data-window-id="${window.id}"
-                     onchange="configRenderer.updateInitiative('${window.id}', this.value)">
-            </div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-label">Shortcut</div>
-            <div class="detail-value">
-              <div class="shortcut-display" 
-                   onclick="configRenderer.showShortcutModal('${window.id}')" 
-                   title="Click to set shortcut">
-                ${shortcutText}
+            <div class="window-details">
+              <div class="initiative-container">
+                <label>Initiative:</label>
+                <input type="number" class="initiative-input" value="${initiative}" min="0" max="9999"
+                       onchange="configRenderer.updateInitiative('${window.id}', parseInt(this.value) || 0)">
               </div>
-              ${window.shortcut ? `<button class="btn btn-danger btn-small" onclick="shortcutManager.removeWindowShortcut('${window.id}')" title="Remove shortcut">×</button>` : ''}
+              <div class="process-info">
+                PID: ${window.pid || 'Unknown'} | Handle: ${window.handle || 'Unknown'}
+              </div>
             </div>
+          </div>
+        </div>
+        <div class="window-controls">
+          <div class="shortcut-container">
+            <div class="shortcut-display" onclick="configRenderer.showShortcutModal('${window.id}')" 
+                 title="Click to set shortcut">
+              ${shortcutText}
+            </div>
+          </div>
+          <div class="window-actions">
+            <label class="window-toggle">
+              <input type="checkbox" ${window.enabled !== false ? 'checked' : ''} 
+                     onchange="configRenderer.toggleWindow('${window.id}', this.checked)">
+              <span class="toggle-slider"></span>
+            </label>
           </div>
         </div>
       </div>
@@ -113,105 +125,22 @@ class WindowRenderer {
   }
 
   showNoWindows() {
-    const elements = this.configRenderer.getElements();
-    elements.noWindows.style.display = 'block';
-    elements.windowsList.style.display = 'none';
+    const windowsList = document.getElementById('windows-list');
+    const noWindows = document.getElementById('no-windows');
+
+    if (windowsList) windowsList.style.display = 'none';
+    if (noWindows) noWindows.style.display = 'block';
   }
 
   hideNoWindows() {
-    const elements = this.configRenderer.getElements();
-    elements.noWindows.style.display = 'none';
-    elements.windowsList.style.display = 'block';
-  }
+    const windowsList = document.getElementById('windows-list');
+    const noWindows = document.getElementById('no-windows');
 
-  addWindowEventListeners() {
-    // Setup dynamic event listeners for window elements
-    if (this.configRenderer.eventHandler) {
-      this.configRenderer.eventHandler.setupWindowElementEvents();
-    }
-  }
-
-  async activateWindow(windowId) {
-    try {
-      console.log(`WindowRenderer: Activating window ${windowId}`);
-      const { ipcRenderer } = require('electron');
-      const success = await ipcRenderer.invoke('activate-window', windowId);
-      
-      if (success) {
-        const windows = this.configRenderer.getWindows();
-        windows.forEach(w => {
-          w.isActive = w.id === windowId;
-        });
-        this.renderWindows();
-      }
-    } catch (error) {
-      console.error('WindowRenderer: Error activating window:', error);
-    }
-  }
-
-  async refreshWindows() {
-    try {
-      const elements = this.configRenderer.getElements();
-      elements.refreshBtn.disabled = true;
-      elements.refreshBtn.textContent = 'Refreshing...';
-
-      const { ipcRenderer } = require('electron');
-      await ipcRenderer.invoke('refresh-windows');
-
-      setTimeout(() => {
-        elements.refreshBtn.disabled = false;
-        elements.refreshBtn.innerHTML = '<img src="../../assets/icons/refresh.png" alt="Refresh" onerror="this.style.display=\'none\'"><span>Refresh</span>';
-      }, 1000);
-    } catch (error) {
-      console.error('WindowRenderer: Error refreshing windows:', error);
-      const elements = this.configRenderer.getElements();
-      elements.refreshBtn.disabled = false;
-      elements.refreshBtn.innerHTML = '<img src="../../assets/icons/refresh.png" alt="Refresh" onerror="this.style.display=\'none\'"><span>Refresh</span>';
-    }
-  }
-
-  // Utility methods for window rendering
-  generateWindowId(character, dofusClass) {
-    return `${character.toLowerCase().replace(/[^a-z0-9]/g, '')}_${dofusClass}`;
-  }
-
-  getWindowById(windowId) {
-    return this.configRenderer.getWindows().find(w => w.id === windowId);
-  }
-
-  updateWindowInList(windowId, updates) {
-    const windows = this.configRenderer.getWindows();
-    const window = windows.find(w => w.id === windowId);
-    
-    if (window) {
-      Object.assign(window, updates);
-      this.renderWindows();
-      return true;
-    }
-    
-    return false;
-  }
-
-  highlightWindow(windowId, duration = 2000) {
-    const windowElement = document.querySelector(`[data-window-id="${windowId}"]`);
-    if (windowElement) {
-      windowElement.classList.add('highlighted');
-      setTimeout(() => {
-        windowElement.classList.remove('highlighted');
-      }, duration);
-    }
-  }
-
-  getWindowStats() {
-    const windows = this.configRenderer.getWindows();
-    return {
-      total: windows.length,
-      active: windows.filter(w => w.isActive).length,
-      enabled: windows.filter(w => w.enabled).length,
-      withShortcuts: windows.filter(w => w.shortcut).length,
-      classes: [...new Set(windows.map(w => w.dofusClass))].length
-    };
+    if (windowsList) windowsList.style.display = 'block';
+    if (noWindows) noWindows.style.display = 'none';
   }
 }
 
-module.exports = WindowRenderer;
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = WindowRenderer;
+}

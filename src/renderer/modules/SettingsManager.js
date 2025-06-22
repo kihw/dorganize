@@ -9,7 +9,7 @@ class SettingsManager {
   updateUIFromSettings() {
     const settings = this.configRenderer.getSettings();
     const elements = this.configRenderer.getElements();
-    
+
     if (!this.configRenderer.settingsLoaded || !settings) return;
 
     try {
@@ -33,10 +33,10 @@ class SettingsManager {
       console.log('SettingsManager: Saving settings:', settings);
       const { ipcRenderer } = require('electron');
       await ipcRenderer.invoke('save-settings', settings);
-      
+
       // Update local settings
       Object.assign(this.configRenderer.settings, settings);
-      
+
       console.log('SettingsManager: Settings saved successfully');
       return true;
     } catch (error) {
@@ -80,7 +80,12 @@ class SettingsManager {
         if (window) {
           window.initiative = initiative;
           this.configRenderer.windowRenderer.renderWindows();
-          this.configRenderer.autoKeyManager.onWindowsUpdated();
+
+          // CORRIGER: Appeler updatePreview au lieu de onWindowsUpdated
+          if (this.configRenderer.autoKeyManager) {
+            this.configRenderer.autoKeyManager.updatePreview();
+          }
+
           this.configRenderer.uiManager.showSuccessMessage('Initiative updated');
         }
       }
@@ -119,7 +124,7 @@ class SettingsManager {
     try {
       const settings = { language: languageCode };
       const success = await this.saveSettings(settings);
-      
+
       if (success) {
         this.configRenderer.uiManager.showSuccessMessage('Language updated');
       }
@@ -161,7 +166,7 @@ class SettingsManager {
     try {
       const windows = this.configRenderer.getWindows();
       const window = windows.find(w => w.id === windowId);
-      
+
       if (!window) return false;
 
       const newEnabledState = !window.enabled;
@@ -188,7 +193,7 @@ class SettingsManager {
     try {
       const { ipcRenderer } = require('electron');
       const success = await ipcRenderer.invoke('reset-all-settings');
-      
+
       if (success) {
         // Reload the page to refresh with default settings
         window.location.reload();
@@ -208,22 +213,22 @@ class SettingsManager {
     try {
       const { ipcRenderer } = require('electron');
       const settings = await ipcRenderer.invoke('export-settings');
-      
+
       if (settings) {
         // Create download link
         const dataStr = JSON.stringify(settings, null, 2);
         const dataBlob = new Blob([dataStr], { type: 'application/json' });
         const url = URL.createObjectURL(dataBlob);
-        
+
         const link = document.createElement('a');
         link.href = url;
         link.download = `dorganize-settings-${new Date().toISOString().split('T')[0]}.json`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        
+
         URL.revokeObjectURL(url);
-        
+
         this.configRenderer.uiManager.showSuccessMessage('Settings exported successfully');
         return true;
       }
@@ -240,10 +245,10 @@ class SettingsManager {
     try {
       const fileContent = await this.readFile(file);
       const settings = JSON.parse(fileContent);
-      
+
       const { ipcRenderer } = require('electron');
       const success = await ipcRenderer.invoke('import-settings', settings);
-      
+
       if (success) {
         this.configRenderer.uiManager.showSuccessMessage('Settings imported successfully');
         // Refresh the page to apply imported settings
@@ -306,7 +311,7 @@ class SettingsManager {
   getSettingsForExport() {
     const settings = this.configRenderer.getSettings();
     const windows = this.configRenderer.getWindows();
-    
+
     return {
       ...settings,
       exportInfo: {
@@ -333,16 +338,16 @@ class SettingsManager {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const backupKey = `backup_${timestamp}`;
     const currentSettings = this.configRenderer.getSettings();
-    
+
     localStorage.setItem(backupKey, JSON.stringify(currentSettings));
-    
+
     // Keep only last 5 backups
     const backupKeys = Object.keys(localStorage).filter(key => key.startsWith('backup_'));
     if (backupKeys.length > 5) {
       backupKeys.sort();
       localStorage.removeItem(backupKeys[0]);
     }
-    
+
     return backupKey;
   }
 
@@ -364,12 +369,12 @@ class SettingsManager {
 
       const settings = JSON.parse(backupData);
       const success = await this.saveSettings(settings);
-      
+
       if (success) {
         this.configRenderer.uiManager.showSuccessMessage('Settings restored from backup');
         setTimeout(() => window.location.reload(), 1500);
       }
-      
+
       return success;
     } catch (error) {
       console.error('SettingsManager: Error restoring from backup:', error);
@@ -390,7 +395,7 @@ class SettingsManager {
     if (this.saveTimeout) {
       clearTimeout(this.saveTimeout);
     }
-    
+
     this.saveTimeout = setTimeout(() => {
       this.saveSettings(settings);
     }, delay);
@@ -399,10 +404,10 @@ class SettingsManager {
   // Settings validation and sanitization
   sanitizeSettings(settings) {
     const sanitized = {};
-    
+
     Object.keys(settings).forEach(key => {
       const value = settings[key];
-      
+
       // Sanitize based on key patterns
       if (key.startsWith('customNames.')) {
         sanitized[key] = this.validateCharacterName(value) ? value.trim() : '';
@@ -416,9 +421,11 @@ class SettingsManager {
         sanitized[key] = value;
       }
     });
-    
+
     return sanitized;
   }
 }
 
-module.exports = SettingsManager;
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = SettingsManager;
+}

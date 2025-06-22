@@ -15,7 +15,7 @@ class UIManager {
 
   updateShortcutsStatusText(enabled) {
     const elements = this.configRenderer.getElements();
-    
+
     if (elements.shortcutsStatusText) {
       elements.shortcutsStatusText.textContent = `Shortcuts: ${enabled ? 'Enabled' : 'Disabled'}`;
       const statusEl = elements.shortcutsStatus;
@@ -57,7 +57,7 @@ class UIManager {
 
   updateLabels() {
     const language = this.configRenderer.getLanguage();
-    
+
     // Update static labels
     const labelMappings = [
       { selector: '#dock-label', key: 'displayGUI_dock' },
@@ -70,7 +70,7 @@ class UIManager {
     labelMappings.forEach(mapping => {
       const elements = document.querySelectorAll(mapping.selector);
       const element = mapping.index !== undefined ? elements[mapping.index] : elements[0];
-      
+
       if (element && language[mapping.key]) {
         element.textContent = language[mapping.key];
       }
@@ -80,7 +80,7 @@ class UIManager {
   updateDockLabels() {
     const language = this.configRenderer.getLanguage();
     const dockLabel = document.getElementById('dock-label');
-    
+
     if (dockLabel && language.displayGUI_dock) {
       dockLabel.textContent = language.displayGUI_dock;
     }
@@ -126,15 +126,15 @@ class UIManager {
       ${type === 'info' ? 'background: #3498db; color: white;' : ''}
       ${type === 'warning' ? 'background: #f39c12; color: white;' : ''}
     `;
-    
+
     document.body.appendChild(messageEl);
-    
+
     // Animate in
     setTimeout(() => {
       messageEl.style.transform = 'translateX(0)';
       messageEl.style.opacity = '1';
     }, 10);
-    
+
     // Remove after duration
     setTimeout(() => {
       messageEl.style.opacity = '0';
@@ -166,11 +166,11 @@ class UIManager {
   updateWindowCount() {
     const elements = this.configRenderer.getElements();
     const windows = this.configRenderer.getWindows();
-    
+
     if (elements.windowCount) {
       const count = windows.length;
       const language = this.configRenderer.getLanguage();
-      
+
       let text = `${count} windows detected`;
       if (language) {
         if (count === 0) {
@@ -181,7 +181,7 @@ class UIManager {
           text = (language.displayTray_window_N || '{0} windows').replace('{0}', count);
         }
       }
-      
+
       elements.windowCount.textContent = text;
     }
   }
@@ -224,7 +224,7 @@ class UIManager {
   updateProgressIndicator(current, total, message = '') {
     // Create or update a progress indicator
     let progressEl = document.getElementById('ui-progress-indicator');
-    
+
     if (!progressEl) {
       progressEl = document.createElement('div');
       progressEl.id = 'ui-progress-indicator';
@@ -293,9 +293,9 @@ class UIManager {
     announcement.setAttribute('aria-atomic', 'true');
     announcement.className = 'sr-only';
     announcement.textContent = message;
-    
+
     document.body.appendChild(announcement);
-    
+
     setTimeout(() => {
       document.body.removeChild(announcement);
     }, 1000);
@@ -312,7 +312,7 @@ class UIManager {
   fadeInElement(element, duration = 300) {
     element.style.opacity = '0';
     element.style.transition = `opacity ${duration}ms ease`;
-    
+
     setTimeout(() => {
       element.style.opacity = '1';
     }, 10);
@@ -321,7 +321,7 @@ class UIManager {
   fadeOutElement(element, duration = 300) {
     element.style.transition = `opacity ${duration}ms ease`;
     element.style.opacity = '0';
-    
+
     return new Promise(resolve => {
       setTimeout(() => {
         resolve();
@@ -339,11 +339,13 @@ class UIManager {
 
     element.style.transform = transforms[direction];
     element.style.transition = `transform ${duration}ms ease`;
-    
+
     setTimeout(() => {
       element.style.transform = 'translateX(0)';
     }, 10);
   }
 }
 
-module.exports = UIManager;
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = UIManager;
+}

@@ -1,79 +1,82 @@
-    <!-- Auto Key Configuration Modal -->
-    <div id="auto-key-config-modal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>⚡ Auto Key Configuration</h3>
-                <button class="modal-close" onclick="configRenderer.closeAutoKeyModal()">×</button>
+<!-- Auto Key Configuration Modal -->
+<div id="auto-key-config-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>⚡ Auto Key Configuration</h3>
+            <button class="modal-close" onclick="configRenderer.closeAutoKeyModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <p>Automatically assign keyboard shortcuts based on initiative order:</p>
+
+            <!-- Enable/Disable Auto Key -->
+            <div class="auto-key-enable">
+                <label class="toggle-container">
+                    <input type="checkbox" id="auto-key-enabled">
+                    <span class="toggle-slider"></span>
+                    <span>Enable Auto Key Configuration</span>
+                </label>
             </div>
-            <div class="modal-body">
-                <p>Automatically assign keyboard shortcuts based on initiative order:</p>
-                
-                <!-- Enable/Disable Auto Key -->
-                <div class="auto-key-enable">
-                    <label class="toggle-container">
-                        <input type="checkbox" id="auto-key-enabled">
-                        <span class="toggle-slider"></span>
-                        <span>Enable Auto Key Configuration</span>
-                    </label>
+
+            <div id="auto-key-settings" style="display: none;">
+                <!-- Preset Selection -->
+                <div class="auto-key-presets">
+                    <div class="preset-section">
+                        <h4>Choose a Preset:</h4>
+                        <div class="preset-buttons">
+                            <button class="btn btn-secondary preset-btn"
+                                onclick="configRenderer.selectAutoKeyPreset('numbers')">
+                                Numbers (1, 2, 3...)
+                            </button>
+                            <button class="btn btn-secondary preset-btn"
+                                onclick="configRenderer.selectAutoKeyPreset('function')">
+                                Function Keys (F1, F2, F3...)
+                            </button>
+                            <button class="btn btn-secondary preset-btn"
+                                onclick="configRenderer.selectAutoKeyPreset('numpad')">
+                                Numpad (Num1, Num2, Num3...)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Custom Pattern -->
+                    <div class="custom-section">
+                        <h4>Or Create Custom Pattern:</h4>
+                        <div class="custom-pattern">
+                            <label for="custom-pattern-input">Pattern (use {n} for position):</label>
+                            <input type="text" id="custom-pattern-input" class="form-input" placeholder="Ctrl+Alt+{n}"
+                                value="Ctrl+Alt+{n}">
+                            <button class="btn btn-secondary" onclick="configRenderer.selectAutoKeyPreset('custom')">
+                                Use Custom Pattern
+                            </button>
+                        </div>
+                        <p><small>Examples: <code>Ctrl+{n}</code>, <code>Alt+F{n}</code>, <code>Shift+{n}</code></small>
+                        </p>
+                    </div>
                 </div>
 
-                <div id="auto-key-settings" style="display: none;">
-                    <!-- Preset Selection -->
-                    <div class="auto-key-presets">
-                        <div class="preset-section">
-                            <h4>Choose a Preset:</h4>
-                            <div class="preset-buttons">
-                                <button class="btn btn-secondary preset-btn" onclick="configRenderer.selectAutoKeyPreset('numbers')">
-                                    Numbers (1, 2, 3...)
-                                </button>
-                                <button class="btn btn-secondary preset-btn" onclick="configRenderer.selectAutoKeyPreset('function')">
-                                    Function Keys (F1, F2, F3...)
-                                </button>
-                                <button class="btn btn-secondary preset-btn" onclick="configRenderer.selectAutoKeyPreset('numpad')">
-                                    Numpad (Num1, Num2, Num3...)
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Custom Pattern -->
-                        <div class="custom-section">
-                            <h4>Or Create Custom Pattern:</h4>
-                            <div class="custom-pattern">
-                                <label for="custom-pattern-input">Pattern (use {n} for position):</label>
-                                <input type="text" id="custom-pattern-input" class="form-input" 
-                                       placeholder="Ctrl+Alt+{n}" value="Ctrl+Alt+{n}">
-                                <button class="btn btn-secondary" onclick="configRenderer.selectAutoKeyPreset('custom')">
-                                    Use Custom Pattern
-                                </button>
-                            </div>
-                            <p><small>Examples: <code>Ctrl+{n}</code>, <code>Alt+F{n}</code>, <code>Shift+{n}</code></small></p>
-                        </div>
+                <!-- Preview Section -->
+                <div class="auto-key-preview">
+                    <div class="preview-header">
+                        <h4>Preview (ordered by initiative):</h4>
                     </div>
-
-                    <!-- Preview Section -->
-                    <div class="auto-key-preview">
-                        <div class="preview-header">
-                            <h4>Preview (ordered by initiative):</h4>
-                        </div>
-                        <div id="auto-key-preview-list">
-                            <!-- Preview items will be populated here -->
-                        </div>
-                    </div>
-
-                    <!-- Manual Override Section -->
-                    <div class="manual-override-section">
-                        <h4>Manual Adjustments:</h4>
-                        <p><small>Click on any shortcut below to customize it individually while keeping Auto Key enabled:</small></p>
-                        <div id="manual-shortcuts-list">
-                            <!-- Manual shortcut items will be populated here -->
-                        </div>
+                    <div id="auto-key-preview-list">
+                        <!-- Preview items will be populated here -->
                     </div>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button id="auto-key-apply" class="btn btn-primary" onclick="configRenderer.applyAutoKeyConfiguration()">Apply Configuration</button>
-                <button id="auto-key-disable" class="btn btn-danger" onclick="configRenderer.disableAutoKey()" style="display: none;">Disable Auto Key</button>
-                <button class="btn btn-secondary" onclick="configRenderer.closeAutoKeyModal()">Close</button>
+
             </div>
         </div>
+        <div class="modal-footer">
+            <button id="auto-key-apply" class="btn btn-primary" onclick="window.applyAutoKeyConfiguration()">
+                Apply Configuration
+            </button>
+            <button id="auto-key-disable" class="btn btn-danger" onclick="window.disableAutoKey()"
+                style="display: none;">
+                Disable Auto Key
+            </button>
+            <button class="btn btn-secondary" onclick="window.closeAutoKeyModal()">
+                Close
+            </button>
+        </div>
     </div>
+</div>

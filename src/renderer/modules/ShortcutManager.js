@@ -8,7 +8,7 @@ class ShortcutManager {
     this.currentWindowId = null;
     this.currentGlobalShortcutType = null;
     this.elements = {};
-    
+
     this.initializeElements();
     this.setupEventListeners();
   }
@@ -257,9 +257,9 @@ class ShortcutManager {
       ${type === 'error' ? 'background: #e74c3c; color: white;' : ''}
       ${type === 'info' ? 'background: #3498db; color: white;' : ''}
     `;
-    
+
     document.body.appendChild(messageEl);
-    
+
     // Remove after 3 seconds
     setTimeout(() => {
       messageEl.style.opacity = '0';
@@ -280,7 +280,7 @@ class ShortcutManager {
 
   formatShortcut(shortcut) {
     if (!shortcut) return 'No shortcut';
-    
+
     return shortcut
       .replace(/CommandOrControl/g, 'Ctrl')
       .replace(/\+/g, ' + ')
@@ -290,4 +290,6 @@ class ShortcutManager {
   }
 }
 
-module.exports = ShortcutManager;
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = ShortcutManager;
+}
