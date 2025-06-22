@@ -207,6 +207,10 @@ class AutoKeyManager {
         return `F${position}`;
       case 'numpad':
         return `Num${position}`;
+      case 'azertyui':
+        // AZERTYUI preset: use the top row letters
+        const azertyuiKeys = ['A', 'Z', 'E', 'R', 'T', 'Y', 'U', 'I'];
+        return azertyuiKeys[position - 1] || `Pos${position}`;
       case 'custom':
         const customPattern = this.settings.customPattern || 'Ctrl+Alt+{n}';
         return customPattern.replace('{n}', position.toString());
