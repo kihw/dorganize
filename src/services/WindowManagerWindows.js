@@ -491,7 +491,7 @@ try {
         bounds: rawWindow.Bounds || { X: 0, Y: 0, Width: 800, Height: 600 },
         avatar: this.getClassAvatar(finalClass),
         shortcut: this.getStoredShortcut(stableId),
-        enabled: this.getStoredEnabled(stableId)
+        enabled: this.getStoredEnabled(stableId) !== false // CORRECTION: Par défaut enabled = true
       };
 
       processedWindows.push(windowInfo);
@@ -501,6 +501,7 @@ try {
     // Remove windows that no longer exist
     for (const [windowId] of this.windows) {
       if (!currentWindowIds.has(windowId)) {
+        console.log(`WindowManagerWindows: Removing stale window: ${windowId}`);
         this.windows.delete(windowId);
         this.windowIdMapping.delete(windowId);
       }
@@ -790,8 +791,9 @@ try {
   getStoredEnabled(windowId) {
     const Store = require('electron-store');
     const store = new Store();
-    const enabled = store.get('enabled', {});
-    return enabled[windowId] !== false;
+    const enabledWindows = store.get('enabledWindows', {});
+    // CORRECTION: Par défaut true si pas défini
+    return enabledWindows[windowId] !== false;
   }
 
   cleanup() {

@@ -241,13 +241,19 @@ class Dorganize {
       });
     });
   }
-
   showDockWindow() {
     if (this.dockWindow && !this.dockWindow.isDestroyed()) {
       return;
     }
 
-    const dockSettings = this.store.get('dock', { enabled: true, position: 'SE' });
+    const dockSettings = this.store.get('dock', {
+      enabled: true,
+      position: 'SE',
+      x: null,
+      y: null,
+      alwaysOnTop: true
+    });
+
     const enabledWindows = this.dofusWindows.filter(w => w.enabled);
 
     if (enabledWindows.length === 0) {
@@ -255,27 +261,35 @@ class Dorganize {
       return;
     }
 
-    console.log('Dorganize: Creating dock window...');
+    console.log('Dorganize: Creating dock overlay window...');
 
     // Calculate dock size
-    const itemCount = enabledWindows.length + 2; // +2 for refresh and config buttons
+    const itemCount = enabledWindows.length + 2;
     const dockWidth = Math.min(600, itemCount * 60 + 20);
     const dockHeight = 70;
 
-    // Position dock based on settings
+    // Position dock
     const displays = screen.getAllDisplays();
     const primaryDisplay = displays[0];
     const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
 
     let x, y;
-    switch (dockSettings.position) {
-      case 'NW': x = 10; y = 10; break;
-      case 'NE': x = screenWidth - dockWidth - 10; y = 10; break;
-      case 'SW': x = 10; y = screenHeight - dockHeight - 10; break;
-      case 'SE': x = screenWidth - dockWidth - 10; y = screenHeight - dockHeight - 10; break;
-      case 'N': x = (screenWidth - dockWidth) / 2; y = 10; break;
-      case 'S': x = (screenWidth - dockWidth) / 2; y = screenHeight - dockHeight - 10; break;
-      default: x = screenWidth - dockWidth - 10; y = screenHeight - dockHeight - 10;
+
+    // Use saved position if available, otherwise use default position
+    if (dockSettings.x !== null && dockSettings.y !== null) {
+      x = dockSettings.x;
+      y = dockSettings.y;
+    } else {
+      // Default positioning based on settings
+      switch (dockSettings.position) {
+        case 'NW': x = 10; y = 10; break;
+        case 'NE': x = screenWidth - dockWidth - 10; y = 10; break;
+        case 'SW': x = 10; y = screenHeight - dockHeight - 10; break;
+        case 'SE': x = screenWidth - dockWidth - 10; y = screenHeight - dockHeight - 10; break;
+        case 'N': x = (screenWidth - dockWidth) / 2; y = 10; break;
+        case 'S': x = (screenWidth - dockWidth) / 2; y = screenHeight - dockHeight - 10; break;
+        default: x = screenWidth - dockWidth - 10; y = screenHeight - dockHeight - 10;
+      }
     }
 
     this.dockWindow = new BrowserWindow({
@@ -288,28 +302,70 @@ class Dorganize {
       alwaysOnTop: true,
       skipTaskbar: true,
       resizable: false,
+      movable: false,
+      minimizable: false,
+      maximizable: false,
       webPreferences: {
         nodeIntegration: true,
         contextIsolation: false
       },
-      show: false
+      show: false,
+      type: 'toolbar',
+      focusable: false,
+      hasShadow: false,
+      thickFrame: false
     });
 
     this.dockWindow.loadFile(path.join(__dirname, 'renderer/dock.html'));
 
     this.dockWindow.once('ready-to-show', () => {
+      console.log('Dorganize: Dock window ready to show');
       this.dockWindow.show();
+
+      // S'assurer que le dock reste toujours au-dessus
+      this.dockWindow.setAlwaysOnTop(true, 'screen-saver');
+
+      // Pour Windows, s'assurer que le dock reste visible même en plein écran
+      if (process.platform === 'win32') {
+        this.dockWindow.setVisibleOnAllWorkspaces(true);
+      }
     });
 
     this.dockWindow.on('closed', () => {
       this.dockWindow = null;
+      if (this.dockInterval) {
+        clearInterval(this.dockInterval);
+        this.dockInterval = null;
+      }
     });
 
-    // Send initial data
-    this.dockWindow.webContents.once('did-finish-load', () => {
-      this.dockWindow.webContents.send('windows-updated', this.dofusWindows);
-      this.dockWindow.webContents.send('language-changed', this.languageManager.getCurrentLanguage());
+    // Sauvegarder la position quand la fenêtre est déplacée
+    this.dockWindow.on('moved', () => {
+      if (this.dockWindow && !this.dockWindow.isDestroyed()) {
+        const [newX, newY] = this.dockWindow.getPosition();
+        this.store.set('dock.x', newX);
+        this.store.set('dock.y', newY);
+      }
     });
+
+    // Send initial data après que la page soit complètement chargée
+    this.dockWindow.webContents.once('did-finish-load', () => {
+      console.log('Dorganize: Dock window loaded, sending initial data...');
+
+      // Attendre un peu pour s'assurer que le JavaScript est initialisé
+      setTimeout(() => {
+        this.dockWindow.webContents.send('windows-updated', this.dofusWindows);
+        this.dockWindow.webContents.send('language-changed', this.languageManager.getCurrentLanguage());
+        console.log('Dorganize: Initial data sent to dock window');
+      }, 500);
+    });
+
+    // Maintenir le dock au-dessus toutes les 5 secondes
+    this.dockInterval = setInterval(() => {
+      if (this.dockWindow && !this.dockWindow.isDestroyed()) {
+        this.dockWindow.setAlwaysOnTop(true, 'screen-saver');
+      }
+    }, 5000);
   }
 
   hideDockWindow() {
@@ -776,6 +832,71 @@ class Dorganize {
       }
       return true;
     });
+
+    // Handlers pour le dock déplaçable
+    ipcMain.handle('move-dock-window', (event, x, y) => {
+      if (this.dockWindow && !this.dockWindow.isDestroyed()) {
+        this.dockWindow.setPosition(Math.round(x), Math.round(y));
+        return true;
+      }
+      return false;
+    });
+
+    ipcMain.handle('resize-dock-window', (event, width, height) => {
+      if (this.dockWindow && !this.dockWindow.isDestroyed()) {
+        const currentBounds = this.dockWindow.getBounds();
+        this.dockWindow.setSize(Math.round(width), Math.round(height));
+        console.log(`Dorganize: Dock resized to ${width}x${height}`);
+        return true;
+      }
+      return false;
+    });
+
+    ipcMain.handle('get-dock-position', () => {
+      if (this.dockWindow && !this.dockWindow.isDestroyed()) {
+        const position = this.dockWindow.getPosition();
+        return position; // Retourne [x, y]
+      }
+      return [0, 0];
+    });
+
+    ipcMain.handle('get-dock-bounds', () => {
+      if (this.dockWindow && !this.dockWindow.isDestroyed()) {
+        return this.dockWindow.getBounds();
+      }
+      return { x: 0, y: 0, width: 0, height: 0 };
+    });
+
+    ipcMain.handle('get-screen-bounds', () => {
+      const displays = screen.getAllDisplays();
+      const primaryDisplay = displays[0];
+      return primaryDisplay.workAreaSize;
+    });
+
+    ipcMain.handle('set-dock-always-on-top', (event, flag) => {
+      if (this.dockWindow && !this.dockWindow.isDestroyed()) {
+        this.dockWindow.setAlwaysOnTop(flag, 'screen-saver');
+        return true;
+      }
+      return false;
+    });
+
+    ipcMain.handle('hide-dock', () => {
+      if (this.dockWindow && !this.dockWindow.isDestroyed()) {
+        this.dockWindow.hide();
+        return true;
+      }
+      return false;
+    });
+
+    ipcMain.handle('show-dock', () => {
+      if (this.dockWindow && !this.dockWindow.isDestroyed()) {
+        this.dockWindow.show();
+        this.dockWindow.setAlwaysOnTop(true, 'screen-saver');
+        return true;
+      }
+      return false;
+    });
   }
 
   loadSettings() {
@@ -889,6 +1010,14 @@ class Dorganize {
       const windows = await this.windowManager.getDofusWindows();
       console.log(`Dorganize: WindowManager returned ${windows.length} windows`);
 
+      // CORRECTION: S'assurer que toutes les fenêtres sont enabled par défaut
+      windows.forEach(window => {
+        if (window.enabled === undefined || window.enabled === null) {
+          window.enabled = true;
+          console.log(`Dorganize: Set enabled=true for window ${window.id}`);
+        }
+      });
+
       const hasChanged = JSON.stringify(windows.map(w => ({ id: w.id, title: w.title, isActive: w.isActive, dofusClass: w.dofusClass }))) !==
         JSON.stringify(this.dofusWindows.map(w => ({ id: w.id, title: w.title, isActive: w.isActive, dofusClass: w.dofusClass })));
 
@@ -912,6 +1041,12 @@ class Dorganize {
         this.sortWindowsByInitiative();
 
         console.log(`Dorganize: Updated dofusWindows array, now has ${this.dofusWindows.length} windows`);
+
+        // CORRECTION: Log pour debug
+        this.dofusWindows.forEach(w => {
+          console.log(`Dorganize: Window ${w.character} - enabled: ${w.enabled}, initiative: ${w.initiative}`);
+        });
+
         this.updateTrayTooltip();
 
         // If shortcuts haven't been loaded yet and we have windows, load them

@@ -1,3 +1,14 @@
+/* Variables pour le dock */
+:root {
+    --dock-bg: rgba(0, 0, 0, 0.9);
+    --dock-blur: 20px;
+    --dock-border: rgba(255, 255, 255, 0.15);
+    --dock-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+    --item-size: 52px;
+    --item-hover-scale: 1.2;
+    --transition-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -17,35 +28,82 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.85);
-    backdrop-filter: blur(15px);
-    border-radius: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    background: var(--dock-bg);
+    backdrop-filter: blur(var(--dock-blur));
+    border-radius: 20px;
+    border: 1px solid var(--dock-border);
+    box-shadow: var(--dock-shadow);
+    position: relative;
+    overflow: hidden;
+    cursor: grab;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.dock-container::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg,
+            rgba(255, 255, 255, 0.1) 0%,
+            rgba(255, 255, 255, 0.05) 50%,
+            rgba(255, 255, 255, 0.1) 100%);
+    border-radius: inherit;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.dock-container:hover::before {
+    opacity: 1;
 }
 
 .dock-items {
     display: flex;
-    gap: 8px;
-    padding: 12px;
+    gap: 12px;
+    padding: 16px;
     align-items: center;
+    position: relative;
 }
 
 .dock-item {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
+    width: var(--item-size);
+    height: var(--item-size);
+    border-radius: 16px;
     background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.4s var(--transition-spring);
     position: relative;
     overflow: hidden;
+    backdrop-filter: blur(10px);
 }
 
+/* Effet de magnification au hover */
+.dock-item:hover {
+    transform: scale(var(--item-hover-scale)) translateY(-8px);
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+    box-shadow:
+        0 15px 35px rgba(0, 0, 0, 0.4),
+        0 0 0 1px rgba(255, 255, 255, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* Effet de voisinage (magnification des éléments adjacents) */
+.dock-items:hover .dock-item:not(:hover) {
+    transform: scale(0.9);
+    opacity: 0.7;
+}
+
+.dock-items .dock-item:hover+.dock-item,
+.dock-items .dock-item:has(+ .dock-item:hover) {
+    transform: scale(1.1) translateY(-4px);
+    opacity: 0.85;
+}
+
+/* Effet glass morphism */
 .dock-item::before {
     content: '';
     position: absolute;
@@ -53,186 +111,281 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+    background: linear-gradient(135deg,
+            rgba(255, 255, 255, 0.1),
+            rgba(255, 255, 255, 0.05));
+    border-radius: inherit;
     opacity: 0;
     transition: opacity 0.3s ease;
-}
-
-.dock-item:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: scale(1.15) translateY(-4px);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
-    border-color: rgba(255, 255, 255, 0.3);
 }
 
 .dock-item:hover::before {
     opacity: 1;
 }
 
-.dock-item:active {
-    transform: scale(1.05) translateY(-2px);
-}
-
-.dock-item.active {
-    background: rgba(52, 152, 219, 0.7);
-    border-color: rgba(52, 152, 219, 0.9);
-    box-shadow: 0 0 20px rgba(52, 152, 219, 0.5);
-}
-
-.dock-item.active::after {
-    content: '';
-    position: absolute;
-    bottom: -2px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 6px;
-    height: 6px;
-    background: #3498db;
-    border-radius: 50%;
-    box-shadow: 0 0 10px rgba(52, 152, 219, 0.8);
-}
-
-.dock-item.activating {
-    animation: activate 0.3s ease;
-}
-
-@keyframes activate {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.2); }
-    100% { transform: scale(1); }
-}
-
+/* Images avec effet de parallaxe */
 .dock-item img {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
+    width: 85%;
+    height: 85%;
+    border-radius: 12px;
     object-fit: cover;
-    transition: transform 0.2s ease;
+    transition: all 0.4s var(--transition-spring);
+    filter: brightness(0.9) saturate(1.1);
 }
 
 .dock-item:hover img {
     transform: scale(1.1);
+    filter: brightness(1.1) saturate(1.3);
 }
 
-.dock-item .window-icon {
-    width: 28px;
-    height: 28px;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 16px;
-    font-weight: bold;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-}
-
-.dock-refresh .window-icon {
-    background: linear-gradient(135deg, #2ecc71, #27ae60);
-}
-
-.dock-refresh.refreshing .window-icon {
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-
-.dock-config .window-icon {
-    background: linear-gradient(135deg, #9b59b6, #8e44ad);
-}
-
-.shortcut-label {
+/* Indicateurs améliorés */
+.index-badge {
     position: absolute;
-    bottom: -24px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.9);
+    top: -8px;
+    left: -8px;
+    background: linear-gradient(135deg, #3498db, #2980b9);
     color: white;
-    padding: 4px 8px;
-    border-radius: 6px;
     font-size: 10px;
-    font-weight: 500;
-    white-space: nowrap;
-    opacity: 0;
-    transition: all 0.3s ease;
-    pointer-events: none;
-    z-index: 1000;
+    font-weight: 700;
+    padding: 4px 6px;
+    border-radius: 12px;
+    min-width: 20px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.3s var(--transition-spring);
 }
 
-.dock-item:hover .shortcut-label {
-    opacity: 1;
-    bottom: -28px;
+.dock-item:hover .index-badge {
+    transform: scale(1.2) translateY(-2px);
+    box-shadow: 0 6px 20px rgba(52, 152, 219, 0.6);
 }
 
 .initiative-badge {
     position: absolute;
-    top: -4px;
-    right: -4px;
+    top: -6px;
+    right: -6px;
     background: linear-gradient(135deg, #e74c3c, #c0392b);
     color: white;
-    font-size: 10px;
-    font-weight: bold;
-    padding: 2px 6px;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 3px 6px;
     border-radius: 10px;
-    min-width: 16px;
+    min-width: 18px;
     text-align: center;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-    opacity: 0.9;
+    box-shadow: 0 3px 10px rgba(231, 76, 60, 0.4);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.3s var(--transition-spring);
 }
 
-.initiative-badge:empty {
-    display: none;
+.dock-item:hover .initiative-badge {
+    transform: scale(1.2) translateY(-2px);
+    box-shadow: 0 5px 16px rgba(231, 76, 60, 0.6);
 }
 
-/* Tooltip */
+/* Indicateur de classe avec animation */
+.class-indicator {
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 3px solid white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s var(--transition-spring);
+    z-index: 10;
+}
+
+.dock-item:hover .class-indicator {
+    transform: scale(1.3) translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* Tooltip amélioré */
 .tooltip {
     position: absolute;
-    bottom: calc(100% + 12px);
+    bottom: calc(100% + 16px);
     left: 50%;
-    transform: translateX(-50%);
+    transform: translateX(-50%) translateY(10px);
     background: rgba(0, 0, 0, 0.95);
     color: white;
-    padding: 8px 12px;
-    border-radius: 8px;
+    padding: 12px 16px;
+    border-radius: 12px;
     font-size: 12px;
-    font-weight: 500;
+    font-weight: 600;
     white-space: nowrap;
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    transition: all 0.3s ease;
+    transition: all 0.3s var(--transition-spring);
     z-index: 1000;
-    max-width: 200px;
+    max-width: 220px;
     text-align: center;
     line-height: 1.4;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.tooltip::after {
+.tooltip::before {
     content: '';
     position: absolute;
     top: 100%;
     left: 50%;
     transform: translateX(-50%);
-    border: 6px solid transparent;
+    border: 8px solid transparent;
     border-top-color: rgba(0, 0, 0, 0.95);
 }
 
 .dock-item:hover .tooltip {
     opacity: 1;
     visibility: visible;
+    transform: translateX(-50%) translateY(0);
 }
 
-/* Animation for dock appearance */
-@keyframes dockSlideIn {
+/* État actif avec effet de lueur */
+.dock-item.active {
+    background: linear-gradient(135deg,
+            rgba(52, 152, 219, 0.3),
+            rgba(52, 152, 219, 0.2));
+    border-color: rgba(52, 152, 219, 0.6);
+    box-shadow:
+        0 0 20px rgba(52, 152, 219, 0.4),
+        0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.dock-item.active::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 8px;
+    height: 8px;
+    background: #3498db;
+    border-radius: 50%;
+    box-shadow: 0 0 10px rgba(52, 152, 219, 0.8);
+    animation: pulse-glow 2s infinite;
+}
+
+@keyframes pulse-glow {
+
+    0%,
+    100% {
+        transform: translateX(-50%) scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: translateX(-50%) scale(1.3);
+        opacity: 0.7;
+    }
+}
+
+/* Animation d'activation */
+.dock-item.activating {
+    animation: activate-pulse 0.6s ease-out;
+}
+
+@keyframes activate-pulse {
+    0% {
+        transform: scale(1);
+    }
+
+    30% {
+        transform: scale(1.3) translateY(-12px);
+    }
+
+    60% {
+        transform: scale(0.95) translateY(-4px);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Boutons spéciaux (refresh, config) */
+.dock-refresh .window-icon,
+.dock-config .window-icon {
+    font-size: 20px;
+    color: white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+}
+
+.dock-refresh .window-icon {
+    background: linear-gradient(135deg, #2ecc71, #27ae60);
+}
+
+.dock-config .window-icon {
+    background: linear-gradient(135deg, #9b59b6, #8e44ad);
+}
+
+.dock-refresh:hover .window-icon,
+.dock-config:hover .window-icon {
+    transform: rotate(15deg) scale(1.1);
+}
+
+.dock-refresh.refreshing .window-icon {
+    animation: spin-smooth 2s linear infinite;
+}
+
+@keyframes spin-smooth {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Indicateur de déplacement */
+.drag-indicator {
+    position: absolute;
+    top: 4px;
+    right: 8px;
+    width: 20px;
+    height: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    opacity: 0.3;
+    transition: opacity 0.3s ease;
+}
+
+.dock-container:hover .drag-indicator {
+    opacity: 0.6;
+}
+
+.drag-indicator:hover {
+    opacity: 1 !important;
+}
+
+.drag-dots {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.drag-dots span {
+    width: 3px;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 50%;
+    display: block;
+}
+
+/* Animation d'apparition du dock */
+@keyframes dock-slide-in {
     from {
         opacity: 0;
-        transform: translateY(20px) scale(0.9);
+        transform: translateY(30px) scale(0.8);
     }
+
     to {
         opacity: 1;
         transform: translateY(0) scale(1);
@@ -240,91 +393,132 @@ body {
 }
 
 .dock-container {
-    animation: dockSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: dock-slide-in 0.6s var(--transition-spring);
 }
 
-/* Responsive adjustments */
+/* Responsive pour le dock */
 @media (max-width: 600px) {
-    .dock-item {
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
+    :root {
+        --item-size: 44px;
+        --item-hover-scale: 1.15;
     }
-    
-    .dock-item img {
-        width: 28px;
-        height: 28px;
-    }
-    
-    .dock-item .window-icon {
-        width: 24px;
-        height: 24px;
-        font-size: 14px;
-    }
-    
+
     .dock-items {
-        gap: 6px;
-        padding: 8px;
+        gap: 8px;
+        padding: 12px;
+    }
+
+    .index-badge,
+    .initiative-badge {
+        font-size: 8px;
+        padding: 2px 4px;
+        min-width: 16px;
+    }
+
+    .class-indicator {
+        width: 12px;
+        height: 12px;
+        border-width: 2px;
     }
 }
 
-/* High DPI displays */
-@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
-    .dock-container {
-        border-width: 0.5px;
-    }
-    
-    .dock-item {
-        border-width: 0.5px;
-    }
-}
-
-/* Dark mode enhancements */
-@media (prefers-color-scheme: dark) {
-    .dock-container {
-        background: rgba(0, 0, 0, 0.9);
-        border-color: rgba(255, 255, 255, 0.1);
-    }
-    
-    .dock-item {
-        background: rgba(255, 255, 255, 0.08);
-        border-color: rgba(255, 255, 255, 0.12);
-    }
-    
-    .dock-item:hover {
-        background: rgba(255, 255, 255, 0.15);
-        border-color: rgba(255, 255, 255, 0.25);
-    }
-}
-
-/* Accessibility improvements */
-.dock-item:focus {
-    outline: 2px solid #3498db;
-    outline-offset: 2px;
-}
-
-.dock-item:focus:not(:focus-visible) {
-    outline: none;
-}
-
-/* Reduced motion support */
+/* Mode haute performance (réduit les effets pour les appareils moins puissants) */
 @media (prefers-reduced-motion: reduce) {
+
     .dock-item,
     .dock-item img,
-    .shortcut-label,
-    .tooltip {
+    .tooltip,
+    .index-badge,
+    .initiative-badge,
+    .class-indicator {
         transition: none;
     }
-    
+
     .dock-item:hover {
-        transform: none;
+        transform: scale(1.05);
     }
-    
+
     .dock-container {
         animation: none;
     }
-    
-    .dock-refresh.refreshing .window-icon {
-        animation: none;
+}
+
+/* Mode compact */
+.dock-container.compact-mode {
+    --item-size: 36px;
+    --item-hover-scale: 1.1;
+}
+
+.dock-container.compact-mode .dock-items {
+    gap: 6px;
+    padding: 10px;
+}
+
+.dock-container.compact-mode .index-badge,
+.dock-container.compact-mode .initiative-badge {
+    font-size: 7px;
+    padding: 1px 3px;
+    min-width: 12px;
+}
+
+.dock-container.compact-mode .class-indicator {
+    width: 10px;
+    height: 10px;
+    border-width: 1px;
+}
+
+/* Animation de loading améliorée */
+.dock-refresh.loading .window-icon {
+    animation: loading-pulse 1.5s infinite;
+}
+
+@keyframes loading-pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 1;
     }
+
+    50% {
+        transform: scale(1.2);
+        opacity: 0.7;
+    }
+}
+
+/* Effet de particules (optionnel) */
+.dock-item.activating::before {
+    content: '';
+    position: absolute;
+    inset: -10px;
+    background: radial-gradient(circle, rgba(52, 152, 219, 0.3) 0%, transparent 70%);
+    border-radius: 50%;
+    animation: particle-burst 0.6s ease-out;
+    pointer-events: none;
+}
+
+@keyframes particle-burst {
+    0% {
+        transform: scale(0);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(2);
+        opacity: 0;
+    }
+}
+
+/* Menu contextuel */
+.dock-context-menu {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: white;
+    user-select: none;
+}
+
+/* Effet de transparence lors du masquage */
+.dock-container.hidden {
+    opacity: 0;
+    transform: scale(0.8);
+    pointer-events: none;
 }
