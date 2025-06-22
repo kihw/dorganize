@@ -180,6 +180,72 @@
             text-align: center;
         }
 
+        .auto-key-enable {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #ecf0f1;
+        }
+
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+        }
+
+        .toggle-container input[type="checkbox"] {
+            display: none;
+        }
+
+        .toggle-slider {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background: #bdc3c7;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-slider::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .toggle-container input:checked + .toggle-slider {
+            background: #27ae60;
+        }
+
+        .toggle-container input:checked + .toggle-slider::after {
+            transform: translateX(26px);
+        }
+
+        .manual-override-section {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fef9e7;
+            border-radius: 8px;
+            border: 1px solid #f1c40f;
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #2ecc71;
+        }
+
     </style>
 </head>
 <body>
@@ -270,6 +336,86 @@
                 </div>
             </div>
         </footer>
+    </div>
+
+    <!-- Auto Key Configuration Modal -->
+    <div id="auto-key-config-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚡ Auto Key Configuration</h3>
+                <button class="modal-close" onclick="configRenderer.closeAutoKeyModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <p>Automatically assign keyboard shortcuts based on initiative order:</p>
+                
+                <!-- Enable/Disable Auto Key -->
+                <div class="auto-key-enable">
+                    <label class="toggle-container">
+                        <input type="checkbox" id="auto-key-enabled">
+                        <span class="toggle-slider"></span>
+                        <span>Enable Auto Key Configuration</span>
+                    </label>
+                </div>
+
+                <div id="auto-key-settings" style="display: none;">
+                    <!-- Preset Selection -->
+                    <div class="auto-key-presets">
+                        <div class="preset-section">
+                            <h4>Choose a Preset:</h4>
+                            <div class="preset-buttons">
+                                <button class="btn btn-secondary preset-btn" onclick="configRenderer.selectAutoKeyPreset('numbers')">
+                                    Numbers (1, 2, 3...)
+                                </button>
+                                <button class="btn btn-secondary preset-btn" onclick="configRenderer.selectAutoKeyPreset('function')">
+                                    Function Keys (F1, F2, F3...)
+                                </button>
+                                <button class="btn btn-secondary preset-btn" onclick="configRenderer.selectAutoKeyPreset('numpad')">
+                                    Numpad (Num1, Num2, Num3...)
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Custom Pattern -->
+                        <div class="custom-section">
+                            <h4>Or Create Custom Pattern:</h4>
+                            <div class="custom-pattern">
+                                <label for="custom-pattern-input">Pattern (use {n} for position):</label>
+                                <input type="text" id="custom-pattern-input" class="form-input" 
+                                       placeholder="Ctrl+Alt+{n}" value="Ctrl+Alt+{n}">
+                                <button class="btn btn-secondary" onclick="configRenderer.selectAutoKeyPreset('custom')">
+                                    Use Custom Pattern
+                                </button>
+                            </div>
+                            <p><small>Examples: <code>Ctrl+{n}</code>, <code>Alt+F{n}</code>, <code>Shift+{n}</code></small></p>
+                        </div>
+                    </div>
+
+                    <!-- Preview Section -->
+                    <div class="auto-key-preview">
+                        <div class="preview-header">
+                            <h4>Preview (ordered by initiative):</h4>
+                        </div>
+                        <div id="auto-key-preview-list">
+                            <!-- Preview items will be populated here -->
+                        </div>
+                    </div>
+
+                    <!-- Manual Override Section -->
+                    <div class="manual-override-section">
+                        <h4>Manual Adjustments:</h4>
+                        <p><small>Click on any shortcut below to customize it individually while keeping Auto Key enabled:</small></p>
+                        <div id="manual-shortcuts-list">
+                            <!-- Manual shortcut items will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="auto-key-apply" class="btn btn-primary" onclick="configRenderer.applyAutoKeyConfiguration()">Apply Configuration</button>
+                <button id="auto-key-disable" class="btn btn-danger" onclick="configRenderer.disableAutoKey()" style="display: none;">Disable Auto Key</button>
+                <button class="btn btn-secondary" onclick="configRenderer.closeAutoKeyModal()">Close</button>
+            </div>
+        </div>
     </div>
 
     <!-- Shortcut capture modal -->
