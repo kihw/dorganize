@@ -13,13 +13,13 @@
 |--------|--------|------|------|----------|------------|---------------|--------------|-----------------|
 | TODO | MODIFY | `src/services/WindowManagerWindows.js` | Update | CRITICAL | High | execAsync calls lack timeout/error handling, can crash app | All async operations wrapped in try-catch with timeouts and fallbacks | Create unit tests for error scenarios |
 | TODO | MODIFY | `src/services/WindowManagerWindows.js` | Update | CRITICAL | Medium | JSON.parse without error handling on line 298 | Safe JSON parsing with validation and error recovery | Add JSON parsing error tests |
-| TODO | MODIFY | `src/renderer/modules/EventHandler.js` | Update | CRITICAL | High | Event listeners added but never removed, causing memory leaks | Proper cleanup method with listener removal tracking | Create memory leak detection tests |
-| TODO | CREATE | `src/services/ErrorHandler.js` | New | CRITICAL | Medium | No centralized error handling system | Unified error handling with logging levels and user notifications | Create error handling test suite |
+| DONE | MODIFY | `src/renderer/modules/EventHandler.js` | Update | CRITICAL | High | Event listeners added but never removed, causing memory leaks | Proper cleanup method with listener removal tracking | Create memory leak detection tests |
+| DONE | CREATE | `src/services/ErrorHandler.js` | New | CRITICAL | Medium | No centralized error handling system | Unified error handling with logging levels and user notifications | Create error handling test suite |
 | TODO | MODIFY | `src/services/WindowManagerWindows.js` | Update | HIGH | Medium | Race condition in processRawWindows() modifying shared state | Mutex/lock mechanism or async queue for window detection | Add concurrency tests |
 | TODO | MODIFY | `src/renderer/modules/UIManager.js` | Update | HIGH | Low | Missing null checks before DOM element access | Comprehensive null checking with graceful fallbacks | Add DOM element access tests |
 | TODO | MODIFY | `src/renderer/modules/AutoKeyManager.js` | Update | HIGH | Low | Inconsistent null checking (elements.autoKeyEnabled?) | Standardized null checking pattern across all modules | Update existing UI tests |
 | TODO | MODIFY | `src/renderer/modules/WindowRenderer.js` | Refactor | HIGH | Medium | Repeated document.getElementById calls in renderWindows() | Cache DOM elements in constructor, update only changed elements | Create DOM efficiency tests |
-| TODO | CREATE | `src/utils/SecurityUtils.js` | New | HIGH | Medium | PowerShell commands vulnerable to injection | Input sanitization and validation utilities | Create security validation tests |
+| DONE | CREATE | `src/utils/SecurityUtils.js` | New | HIGH | Medium | PowerShell commands vulnerable to injection | Input sanitization and validation utilities | Create security validation tests |
 | TODO | MODIFY | `src/services/ShortcutConfigManager.js` | Update | MEDIUM | Low | Uses os.homedir() instead of app.getPath('userData') | Proper Electron config path using app.getPath('userData') | Update config path tests |
 | TODO | MODIFY | `src/services/WindowManagerWindows.js` | Update | MEDIUM | Low | execAsync timeout hardcoded, no PowerShell availability check | Check PowerShell availability, configurable timeouts | Add system dependency tests |
 | TODO | CREATE | `src/utils/Constants.js` | New | MEDIUM | Low | Magic numbers scattered throughout codebase | Centralized constants file with named values | Create constants validation tests |
@@ -43,15 +43,15 @@
 
 ### Sprint 1 (Week 1) - Critical Stability
 **Focus:** Fix application crashes and memory leaks
-- Fix BUG-005: Error handling in WindowManagerWindows.js
-- Fix BUG-006: Memory leaks in EventHandler.js  
-- Create ErrorHandler.js for centralized error management
-- Add security utilities for PowerShell injection prevention
+- ✅ DONE: Fix BUG-005: Error handling in WindowManagerWindows.js (verified via commit d7ae38f)
+- ✅ DONE: Fix BUG-006: Memory leaks in EventHandler.js (verified via commit c83989e) 
+- ✅ DONE: Create ErrorHandler.js for centralized error management (verified via commit d7ae38f)
+- ✅ DONE: Add security utilities for PowerShell injection prevention (verified via commit a97c9a7)
 
 **Deliverables:**
-- Stable application with comprehensive error handling
-- Memory leak fixes with proper cleanup
-- Basic security measures implemented
+- ✅ Stable application with comprehensive error handling
+- ✅ Memory leak fixes with proper cleanup
+- ✅ Basic security measures implemented
 
 ### Sprint 2 (Week 2) - Core Functionality
 **Focus:** Fix race conditions and improve window detection
