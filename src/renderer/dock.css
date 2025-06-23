@@ -1,12 +1,14 @@
-/* Variables pour le dock */
+/* Variables améliorées pour le dock */
 :root {
-    --dock-bg: rgba(0, 0, 0, 0.9);
-    --dock-blur: 20px;
+    --dock-bg: linear-gradient(135deg, rgba(15, 15, 25, 0.95), rgba(25, 25, 35, 0.9));
+    --dock-blur: 25px;
     --dock-border: rgba(255, 255, 255, 0.15);
-    --dock-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
-    --item-size: 52px;
-    --item-hover-scale: 1.2;
-    --transition-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    --dock-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.1);
+    --item-size: 56px;
+    --item-hover-scale: 1.3;
+    --transition-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --neon-glow: 0 0 20px rgba(52, 152, 219, 0.6);
+    --glass-effect: rgba(255, 255, 255, 0.1);
 }
 
 * {
@@ -18,8 +20,10 @@
 body {
     background: transparent;
     overflow: hidden;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif;
     user-select: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 .dock-container {
@@ -29,202 +33,286 @@ body {
     align-items: center;
     justify-content: center;
     background: var(--dock-bg);
-    backdrop-filter: blur(var(--dock-blur));
-    border-radius: 20px;
+    backdrop-filter: blur(var(--dock-blur)) saturate(180%);
+    border-radius: 24px;
     border: 1px solid var(--dock-border);
     box-shadow: var(--dock-shadow);
     position: relative;
     overflow: hidden;
     cursor: grab;
-    transition: transform 0.3s ease, opacity 0.3s ease;
+    transition: all 0.4s var(--transition-spring);
+    will-change: transform;
+    transform: translateZ(0);
 }
 
+/* Effet holographique */
 .dock-container::before {
     content: '';
     position: absolute;
     inset: 0;
     background: linear-gradient(135deg,
-            rgba(255, 255, 255, 0.1) 0%,
-            rgba(255, 255, 255, 0.05) 50%,
-            rgba(255, 255, 255, 0.1) 100%);
+            transparent 0%,
+            rgba(255, 255, 255, 0.1) 30%,
+            transparent 50%,
+            rgba(52, 152, 219, 0.05) 70%,
+            transparent 100%);
     border-radius: inherit;
     opacity: 0;
-    transition: opacity 0.3s ease;
+    transition: opacity 0.6s ease;
+    animation: shimmer 3s infinite;
+}
+
+@keyframes shimmer {
+
+    0%,
+    100% {
+        transform: translateX(-100%);
+    }
+
+    50% {
+        transform: translateX(100%);
+    }
 }
 
 .dock-container:hover::before {
     opacity: 1;
 }
 
+/* Particules flottantes */
+.dock-container::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 20% 80%, rgba(52, 152, 219, 0.3) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(142, 68, 173, 0.2) 0%, transparent 50%),
+        radial-gradient(circle at 40% 40%, rgba(39, 174, 96, 0.2) 0%, transparent 50%);
+    border-radius: inherit;
+    opacity: 0.6;
+    filter: blur(1px);
+    animation: float-particles 8s infinite;
+}
+
+@keyframes float-particles {
+
+    0%,
+    100% {
+        transform: translateY(0px) rotate(0deg);
+    }
+
+    33% {
+        transform: translateY(-2px) rotate(1deg);
+    }
+
+    66% {
+        transform: translateY(1px) rotate(-1deg);
+    }
+}
+
 .dock-items {
     display: flex;
-    gap: 12px;
-    padding: 16px;
+    gap: 14px;
+    padding: 20px;
     align-items: center;
     position: relative;
+    z-index: 2;
 }
 
 .dock-item {
     width: var(--item-size);
     height: var(--item-size);
-    border-radius: 16px;
-    background: rgba(255, 255, 255, 0.1);
+    border-radius: 18px;
+    background: linear-gradient(135deg,
+            rgba(255, 255, 255, 0.15),
+            rgba(255, 255, 255, 0.05));
     border: 1px solid rgba(255, 255, 255, 0.2);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.4s var(--transition-spring);
+    transition: all 0.5s var(--transition-spring);
     position: relative;
     overflow: hidden;
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(15px);
+    will-change: transform, opacity;
+    contain: layout style paint;
 }
 
-/* Effet de magnification au hover */
+/* Effet de magnification amélioré */
 .dock-item:hover {
-    transform: scale(var(--item-hover-scale)) translateY(-8px);
-    background: rgba(255, 255, 255, 0.2);
+    transform: scale(var(--item-hover-scale)) translateY(-12px);
+    background: linear-gradient(135deg,
+            rgba(255, 255, 255, 0.25),
+            rgba(255, 255, 255, 0.1));
     border-color: rgba(255, 255, 255, 0.4);
     box-shadow:
-        0 15px 35px rgba(0, 0, 0, 0.4),
-        0 0 0 1px rgba(255, 255, 255, 0.1),
-        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        0 20px 40px rgba(0, 0, 0, 0.4),
+        0 0 0 1px rgba(255, 255, 255, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3),
+        var(--neon-glow);
+    z-index: 10;
 }
 
-/* Effet de voisinage (magnification des éléments adjacents) */
+/* Effet de voisinage intelligent */
 .dock-items:hover .dock-item:not(:hover) {
-    transform: scale(0.9);
+    transform: scale(0.92);
     opacity: 0.7;
+    filter: blur(0.5px);
 }
 
 .dock-items .dock-item:hover+.dock-item,
 .dock-items .dock-item:has(+ .dock-item:hover) {
-    transform: scale(1.1) translateY(-4px);
-    opacity: 0.85;
+    transform: scale(1.15) translateY(-6px);
+    opacity: 0.9;
 }
 
-/* Effet glass morphism */
+/* Effet glass morphism avancé */
 .dock-item::before {
     content: '';
     position: absolute;
     top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(135deg,
-            rgba(255, 255, 255, 0.1),
-            rgba(255, 255, 255, 0.05));
-    border-radius: inherit;
+    left: -50%;
+    width: 200%;
+    height: 100%;
+    background: linear-gradient(90deg,
+            transparent,
+            rgba(255, 255, 255, 0.2),
+            transparent);
+    transform: skewX(-20deg);
+    transition: left 0.6s ease;
     opacity: 0;
-    transition: opacity 0.3s ease;
 }
 
 .dock-item:hover::before {
+    left: 100%;
     opacity: 1;
 }
 
-/* Images avec effet de parallaxe */
+/* Images avec effet premium */
 .dock-item img {
-    width: 85%;
-    height: 85%;
-    border-radius: 12px;
+    width: 88%;
+    height: 88%;
+    border-radius: 14px;
     object-fit: cover;
-    transition: all 0.4s var(--transition-spring);
-    filter: brightness(0.9) saturate(1.1);
+    transition: all 0.5s var(--transition-spring);
+    filter: brightness(0.95) saturate(1.2) contrast(1.1);
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.2);
 }
 
 .dock-item:hover img {
-    transform: scale(1.1);
-    filter: brightness(1.1) saturate(1.3);
+    transform: scale(1.08) rotate(1deg);
+    filter: brightness(1.15) saturate(1.4) contrast(1.2);
+    box-shadow:
+        inset 0 1px 2px rgba(255, 255, 255, 0.3),
+        0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-/* Indicateurs améliorés */
+/* Indicateurs premium */
 .index-badge {
     position: absolute;
     top: -8px;
     left: -8px;
     background: linear-gradient(135deg, #3498db, #2980b9);
     color: white;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
-    padding: 4px 6px;
-    border-radius: 12px;
-    min-width: 20px;
+    padding: 4px 8px;
+    border-radius: 14px;
+    min-width: 22px;
     text-align: center;
-    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    transition: all 0.3s var(--transition-spring);
+    box-shadow:
+        0 4px 12px rgba(52, 152, 219, 0.4),
+        0 0 0 2px rgba(255, 255, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.4s var(--transition-spring);
+    backdrop-filter: blur(10px);
 }
 
 .dock-item:hover .index-badge {
-    transform: scale(1.2) translateY(-2px);
-    box-shadow: 0 6px 20px rgba(52, 152, 219, 0.6);
+    transform: scale(1.3) translateY(-4px);
+    box-shadow:
+        0 8px 24px rgba(52, 152, 219, 0.6),
+        0 0 0 3px rgba(255, 255, 255, 0.4);
+    background: linear-gradient(135deg, #5dade2, #3498db);
 }
 
 .initiative-badge {
     position: absolute;
-    top: -6px;
-    right: -6px;
+    top: -8px;
+    right: -8px;
     background: linear-gradient(135deg, #e74c3c, #c0392b);
     color: white;
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 700;
-    padding: 3px 6px;
-    border-radius: 10px;
-    min-width: 18px;
+    padding: 4px 7px;
+    border-radius: 12px;
+    min-width: 20px;
     text-align: center;
-    box-shadow: 0 3px 10px rgba(231, 76, 60, 0.4);
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    transition: all 0.3s var(--transition-spring);
+    box-shadow:
+        0 4px 16px rgba(231, 76, 60, 0.5),
+        0 0 0 2px rgba(255, 255, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.4s var(--transition-spring);
+    backdrop-filter: blur(10px);
 }
 
 .dock-item:hover .initiative-badge {
-    transform: scale(1.2) translateY(-2px);
-    box-shadow: 0 5px 16px rgba(231, 76, 60, 0.6);
+    transform: scale(1.25) translateY(-3px);
+    box-shadow:
+        0 6px 20px rgba(231, 76, 60, 0.7),
+        0 0 0 3px rgba(255, 255, 255, 0.4);
 }
 
-/* Indicateur de classe avec animation */
+/* Indicateur de classe holographique */
 .class-indicator {
     position: absolute;
-    bottom: -4px;
-    right: -4px;
-    width: 16px;
-    height: 16px;
+    bottom: -5px;
+    right: -5px;
+    width: 18px;
+    height: 18px;
     border-radius: 50%;
-    border: 3px solid white;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    transition: all 0.3s var(--transition-spring);
-    z-index: 10;
+    border: 3px solid rgba(255, 255, 255, 0.8);
+    box-shadow:
+        0 3px 12px rgba(0, 0, 0, 0.4),
+        inset 0 1px 2px rgba(255, 255, 255, 0.3);
+    transition: all 0.4s var(--transition-spring);
+    backdrop-filter: blur(5px);
 }
 
 .dock-item:hover .class-indicator {
-    transform: scale(1.3) translateY(-2px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    transform: scale(1.4) translateY(-2px);
+    box-shadow:
+        0 6px 20px rgba(0, 0, 0, 0.5),
+        inset 0 1px 3px rgba(255, 255, 255, 0.4),
+        0 0 15px var(--class-color, #3498db);
 }
 
-/* Tooltip amélioré */
+/* Tooltip premium */
 .tooltip {
     position: absolute;
-    bottom: calc(100% + 16px);
+    bottom: calc(100% + 20px);
     left: 50%;
-    transform: translateX(-50%) translateY(10px);
-    background: rgba(0, 0, 0, 0.95);
+    transform: translateX(-50%) translateY(15px);
+    background: linear-gradient(135deg,
+            rgba(15, 15, 25, 0.95),
+            rgba(25, 25, 35, 0.9));
     color: white;
-    padding: 12px 16px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 600;
+    padding: 14px 18px;
+    border-radius: 16px;
+    font-size: 13px;
+    font-weight: 500;
     white-space: nowrap;
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    transition: all 0.3s var(--transition-spring);
+    transition: all 0.4s var(--transition-spring);
     z-index: 1000;
-    max-width: 220px;
+    max-width: 250px;
     text-align: center;
-    line-height: 1.4;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(10px);
+    line-height: 1.6;
+    box-shadow:
+        0 12px 32px rgba(0, 0, 0, 0.6),
+        0 0 0 1px rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px) saturate(180%);
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -234,8 +322,9 @@ body {
     top: 100%;
     left: 50%;
     transform: translateX(-50%);
-    border: 8px solid transparent;
-    border-top-color: rgba(0, 0, 0, 0.95);
+    border: 10px solid transparent;
+    border-top-color: rgba(15, 15, 25, 0.95);
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 }
 
 .dock-item:hover .tooltip {
@@ -244,61 +333,91 @@ body {
     transform: translateX(-50%) translateY(0);
 }
 
-/* État actif avec effet de lueur */
+/* État actif avec effet néon */
 .dock-item.active {
     background: linear-gradient(135deg,
-            rgba(52, 152, 219, 0.3),
+            rgba(52, 152, 219, 0.4),
             rgba(52, 152, 219, 0.2));
-    border-color: rgba(52, 152, 219, 0.6);
+    border-color: rgba(52, 152, 219, 0.8);
     box-shadow:
-        0 0 20px rgba(52, 152, 219, 0.4),
-        0 8px 24px rgba(0, 0, 0, 0.3);
+        0 0 30px rgba(52, 152, 219, 0.6),
+        0 12px 32px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    animation: active-pulse 2s infinite;
+}
+
+@keyframes active-pulse {
+
+    0%,
+    100% {
+        box-shadow:
+            0 0 30px rgba(52, 152, 219, 0.6),
+            0 12px 32px rgba(0, 0, 0, 0.4),
+            inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    }
+
+    50% {
+        box-shadow:
+            0 0 40px rgba(52, 152, 219, 0.8),
+            0 12px 32px rgba(0, 0, 0, 0.4),
+            inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    }
 }
 
 .dock-item.active::after {
     content: '';
     position: absolute;
-    bottom: -8px;
+    bottom: -12px;
     left: 50%;
     transform: translateX(-50%);
-    width: 8px;
-    height: 8px;
-    background: #3498db;
+    width: 12px;
+    height: 12px;
+    background: radial-gradient(circle, #3498db, #2980b9);
     border-radius: 50%;
-    box-shadow: 0 0 10px rgba(52, 152, 219, 0.8);
-    animation: pulse-glow 2s infinite;
+    box-shadow:
+        0 0 20px rgba(52, 152, 219, 0.8),
+        0 2px 4px rgba(0, 0, 0, 0.3);
+    animation: active-indicator 2s infinite;
 }
 
-@keyframes pulse-glow {
+@keyframes active-indicator {
 
     0%,
     100% {
         transform: translateX(-50%) scale(1);
-        opacity: 1;
+        opacity: 0.8;
     }
 
     50% {
         transform: translateX(-50%) scale(1.3);
-        opacity: 0.7;
+        opacity: 1;
     }
 }
 
-/* Animation d'activation */
+/* Animation d'activation premium */
 .dock-item.activating {
-    animation: activate-pulse 0.6s ease-out;
+    animation: activate-premium 0.8s ease-out;
 }
 
-@keyframes activate-pulse {
+@keyframes activate-premium {
     0% {
         transform: scale(1);
     }
 
-    30% {
-        transform: scale(1.3) translateY(-12px);
+    20% {
+        transform: scale(1.4) translateY(-16px) rotate(2deg);
+    }
+
+    40% {
+        transform: scale(1.2) translateY(-8px) rotate(-1deg);
     }
 
     60% {
-        transform: scale(0.95) translateY(-4px);
+        transform: scale(1.35) translateY(-12px) rotate(1deg);
+    }
+
+    80% {
+        transform: scale(0.95) translateY(-2px);
     }
 
     100% {
@@ -306,33 +425,43 @@ body {
     }
 }
 
-/* Boutons spéciaux (refresh, config) */
+/* Boutons spéciaux premium */
 .dock-refresh .window-icon,
 .dock-config .window-icon {
-    font-size: 20px;
+    font-size: 22px;
     color: white;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-    transition: all 0.3s ease;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    transition: all 0.4s var(--transition-spring);
+    background: linear-gradient(135deg, transparent, rgba(255, 255, 255, 0.1));
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .dock-refresh .window-icon {
     background: linear-gradient(135deg, #2ecc71, #27ae60);
+    box-shadow: 0 4px 12px rgba(46, 204, 113, 0.3);
 }
 
 .dock-config .window-icon {
     background: linear-gradient(135deg, #9b59b6, #8e44ad);
+    box-shadow: 0 4px 12px rgba(155, 89, 182, 0.3);
 }
 
 .dock-refresh:hover .window-icon,
 .dock-config:hover .window-icon {
-    transform: rotate(15deg) scale(1.1);
+    transform: rotate(15deg) scale(1.15);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 .dock-refresh.refreshing .window-icon {
-    animation: spin-smooth 2s linear infinite;
+    animation: spin-premium 2s linear infinite;
 }
 
-@keyframes spin-smooth {
+@keyframes spin-premium {
     from {
         transform: rotate(0deg);
     }
@@ -342,183 +471,112 @@ body {
     }
 }
 
-/* Indicateur de déplacement */
-.drag-indicator {
-    position: absolute;
-    top: 4px;
-    right: 8px;
-    width: 20px;
-    height: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: grab;
-    opacity: 0.3;
-    transition: opacity 0.3s ease;
+/* États de succès/erreur premium */
+.dock-refresh.success .window-icon {
+    color: #27ae60;
+    animation: success-premium 0.8s ease-out;
+    background: linear-gradient(135deg, #2ecc71, #27ae60);
 }
 
-.dock-container:hover .drag-indicator {
-    opacity: 0.6;
+.dock-refresh.error .window-icon {
+    color: #e74c3c;
+    animation: error-premium 0.8s ease-out;
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
 }
 
-.drag-indicator:hover {
-    opacity: 1 !important;
+@keyframes success-premium {
+    0% {
+        transform: scale(1);
+    }
+
+    30% {
+        transform: scale(1.3) rotate(5deg);
+    }
+
+    60% {
+        transform: scale(0.9) rotate(-2deg);
+    }
+
+    100% {
+        transform: scale(1);
+    }
 }
 
-.drag-dots {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+@keyframes error-premium {
+
+    0%,
+    100% {
+        transform: translateX(0) scale(1);
+    }
+
+    25% {
+        transform: translateX(-8px) scale(1.1);
+    }
+
+    75% {
+        transform: translateX(8px) scale(1.1);
+    }
 }
 
-.drag-dots span {
-    width: 3px;
-    height: 3px;
-    background: rgba(255, 255, 255, 0.6);
-    border-radius: 50%;
-    display: block;
-}
-
-/* Animation d'apparition du dock */
-@keyframes dock-slide-in {
+/* Animation d'apparition premium */
+@keyframes dock-appear {
     from {
         opacity: 0;
-        transform: translateY(30px) scale(0.8);
+        transform: translateY(40px) scale(0.7);
+        filter: blur(10px);
     }
 
     to {
         opacity: 1;
         transform: translateY(0) scale(1);
+        filter: blur(0px);
     }
 }
 
 .dock-container {
-    animation: dock-slide-in 0.6s var(--transition-spring);
+    animation: dock-appear 0.8s var(--transition-spring);
 }
 
-/* Responsive pour le dock */
+/* Mode compact premium */
+.dock-container.compact-mode {
+    --item-size: 44px;
+    --item-hover-scale: 1.2;
+    border-radius: 20px;
+}
+
+.dock-container.compact-mode .dock-items {
+    gap: 10px;
+    padding: 16px;
+}
+
+/* Responsive premium */
 @media (max-width: 600px) {
     :root {
-        --item-size: 44px;
+        --item-size: 48px;
         --item-hover-scale: 1.15;
     }
 
     .dock-items {
-        gap: 8px;
-        padding: 12px;
+        gap: 10px;
+        padding: 16px;
     }
 
-    .index-badge,
-    .initiative-badge {
-        font-size: 8px;
-        padding: 2px 4px;
-        min-width: 16px;
-    }
-
-    .class-indicator {
-        width: 12px;
-        height: 12px;
-        border-width: 2px;
+    .tooltip {
+        font-size: 12px;
+        padding: 12px 16px;
+        max-width: 200px;
     }
 }
 
-/* Mode haute performance (réduit les effets pour les appareils moins puissants) */
+/* Performance optimizations */
 @media (prefers-reduced-motion: reduce) {
-
-    .dock-item,
-    .dock-item img,
-    .tooltip,
-    .index-badge,
-    .initiative-badge,
-    .class-indicator {
-        transition: none;
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.1s !important;
     }
 
     .dock-item:hover {
         transform: scale(1.05);
     }
-
-    .dock-container {
-        animation: none;
-    }
-}
-
-/* Mode compact */
-.dock-container.compact-mode {
-    --item-size: 36px;
-    --item-hover-scale: 1.1;
-}
-
-.dock-container.compact-mode .dock-items {
-    gap: 6px;
-    padding: 10px;
-}
-
-.dock-container.compact-mode .index-badge,
-.dock-container.compact-mode .initiative-badge {
-    font-size: 7px;
-    padding: 1px 3px;
-    min-width: 12px;
-}
-
-.dock-container.compact-mode .class-indicator {
-    width: 10px;
-    height: 10px;
-    border-width: 1px;
-}
-
-/* Animation de loading améliorée */
-.dock-refresh.loading .window-icon {
-    animation: loading-pulse 1.5s infinite;
-}
-
-@keyframes loading-pulse {
-
-    0%,
-    100% {
-        transform: scale(1);
-        opacity: 1;
-    }
-
-    50% {
-        transform: scale(1.2);
-        opacity: 0.7;
-    }
-}
-
-/* Effet de particules (optionnel) */
-.dock-item.activating::before {
-    content: '';
-    position: absolute;
-    inset: -10px;
-    background: radial-gradient(circle, rgba(52, 152, 219, 0.3) 0%, transparent 70%);
-    border-radius: 50%;
-    animation: particle-burst 0.6s ease-out;
-    pointer-events: none;
-}
-
-@keyframes particle-burst {
-    0% {
-        transform: scale(0);
-        opacity: 1;
-    }
-
-    100% {
-        transform: scale(2);
-        opacity: 0;
-    }
-}
-
-/* Menu contextuel */
-.dock-context-menu {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    color: white;
-    user-select: none;
-}
-
-/* Effet de transparence lors du masquage */
-.dock-container.hidden {
-    opacity: 0;
-    transform: scale(0.8);
-    pointer-events: none;
 }

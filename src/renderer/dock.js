@@ -11,6 +11,11 @@ class DockRenderer {
     this.dragOffset = { x: 0, y: 0 };
     this.elements = {};
 
+    // Add error tracking
+    this.errorCount = 0;
+    this.lastError = null;
+    this.debugMode = localStorage.getItem('dock-debug') === 'true';
+
     // Attendre que le DOM soit prêt
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => {
@@ -27,6 +32,63 @@ class DockRenderer {
     this.setupEventListeners();
     this.setupDragAndDrop();
     this.loadData();
+
+    // Debug panel
+    if (this.debugMode) {
+      this.createDebugPanel();
+    }
+  }
+
+  createDebugPanel() {
+    const debugPanel = document.createElement('div');
+    debugPanel.id = 'debug-panel';
+    debugPanel.style.cssText = `
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      z-index: 10000;
+      max-width: 300px;
+    `;
+    document.body.appendChild(debugPanel);
+
+    this.updateDebugInfo();
+    setInterval(() => this.updateDebugInfo(), 1000);
+  }
+
+  updateDebugInfo() {
+    const debugPanel = document.getElementById('debug-panel');
+    if (!debugPanel) return;
+
+    debugPanel.innerHTML = `
+      <strong>Dock Debug Info</strong><br>
+      Windows: ${this.windows.length}<br>
+      Enabled: ${this.windows.filter(w => w.enabled).length}<br>
+      Refreshing: ${this.refreshing}<br>
+      Errors: ${this.errorCount}<br>
+      Last Error: ${this.lastError || 'None'}<br>
+      Memory: ${(performance.memory?.usedJSHeapSize / 1024 / 1024).toFixed(1)}MB
+    `;
+  }
+
+  // Enhanced error logging
+  logError(error, context = '') {
+    this.errorCount++;
+    this.lastError = `${context}: ${error.message}`;
+    console.error(`DockRenderer Error [${context}]:`, error);
+
+    // Send error to main process for logging
+    if (ipcRenderer) {
+      ipcRenderer.send('dock-error', {
+        error: error.message,
+        context,
+        timestamp: new Date().toISOString()
+      });
+    }
   }
 
   initializeElements() {
@@ -132,17 +194,25 @@ class DockRenderer {
   setupEventListeners() {
     console.log('DockRenderer: Setting up event listeners...');
 
-    // IPC listeners
+    // Debounced refresh function
+    let refreshTimeout;
+    const debouncedRefresh = () => {
+      clearTimeout(refreshTimeout);
+      refreshTimeout = setTimeout(() => {
+        this.renderDock();
+      }, 100);
+    };
+
+    // IPC listeners with debouncing
     ipcRenderer.on('windows-updated', (event, windows) => {
       console.log('DockRenderer: Received windows-updated event with', windows.length, 'windows');
-      console.log('DockRenderer: Windows data received:', windows);
 
-      // Debug: vérifier les fenêtres enabled
-      const enabledCount = windows.filter(w => w.enabled).length;
-      console.log('DockRenderer: Enabled windows count:', enabledCount);
-
-      this.windows = windows;
-      this.renderDock();
+      // Only update if windows actually changed
+      const hasChanged = JSON.stringify(windows) !== JSON.stringify(this.windows);
+      if (hasChanged) {
+        this.windows = windows;
+        debouncedRefresh();
+      }
     });
 
     ipcRenderer.on('language-changed', (event, language) => {
@@ -229,11 +299,25 @@ class DockRenderer {
       return;
     }
 
-    console.log('DockRenderer: Rendering dock with', this.windows.length, 'windows');
-
-    // CORRECTION: Activer toutes les fenêtres si aucune n'est activée
+    // Performance optimization: limit visible windows
+    const MAX_VISIBLE_WINDOWS = 12;
     let enabledWindows = this.windows.filter(w => w.enabled);
 
+    if (enabledWindows.length === 0 && this.windows.length > 0) {
+      this.windows.forEach(w => w.enabled = true);
+      enabledWindows = this.windows;
+    }
+
+    // Paginate if too many windows
+    if (enabledWindows.length > MAX_VISIBLE_WINDOWS) {
+      const currentPage = this.currentPage || 0;
+      const startIndex = currentPage * MAX_VISIBLE_WINDOWS;
+      enabledWindows = enabledWindows.slice(startIndex, startIndex + MAX_VISIBLE_WINDOWS);
+    }
+
+    console.log('DockRenderer: Rendering dock with', enabledWindows.length, 'windows');
+
+    // CORRECTION: Activer toutes les fenêtres si aucune n'est activée
     if (enabledWindows.length === 0 && this.windows.length > 0) {
       console.log('DockRenderer: No enabled windows found, enabling all windows as fallback');
       this.windows.forEach(w => w.enabled = true);
@@ -331,6 +415,7 @@ class DockRenderer {
     setTimeout(() => {
       this.addMagnificationEffect();
       this.addParallaxEffect();
+      this.addAdvancedVisualEffects(); // Nouvelle ligne
     }, 100);
 
     console.log('DockRenderer: Dock rendered successfully');
@@ -614,24 +699,59 @@ class DockRenderer {
     }
   }
 
+  // Add loading states and better error handling
   async refreshWindows() {
     if (this.refreshing) return;
 
     try {
       this.refreshing = true;
-      this.renderDock(); // Update UI to show refreshing state
+      this.showLoadingState();
 
-      await ipcRenderer.invoke('refresh-windows'); er.invoke('refresh-windows');
+      // Add timeout for better error handling
+      const refreshPromise = ipcRenderer.invoke('refresh-windows');
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Refresh timeout')), 10000)
+      );
 
-      // Visual feedback
+      await Promise.race([refreshPromise, timeoutPromise]);
+
+      // Success feedback
+      this.showSuccessState();
+
+    } catch (error) {
+      console.error('Error refreshing windows:', error);
+      this.showErrorState(error.message);
+    } finally {
       setTimeout(() => {
         this.refreshing = false;
         this.renderDock();
       }, 1000);
-    } catch (error) {
-      console.error('Error refreshing windows:', error);
-      this.refreshing = false;
-      this.renderDock();
+    }
+  }
+
+  showSuccessState() {
+    const refreshButton = document.querySelector('.dock-refresh');
+    if (refreshButton) {
+      refreshButton.classList.add('success');
+      refreshButton.querySelector('.window-icon').textContent = '✓';
+
+      setTimeout(() => {
+        refreshButton.classList.remove('success');
+        refreshButton.querySelector('.window-icon').textContent = '⟳';
+      }, 1500);
+    }
+  }
+
+  showErrorState(message) {
+    const refreshButton = document.querySelector('.dock-refresh');
+    if (refreshButton) {
+      refreshButton.classList.add('error');
+      refreshButton.title = `Error: ${message}`;
+
+      setTimeout(() => {
+        refreshButton.classList.remove('error');
+        refreshButton.title = this.language.dock_REFRESH_tooltip || 'Refresh windows';
+      }, 3000);
     }
   }
 
@@ -765,17 +885,41 @@ class DockRenderer {
     items.forEach((item, index) => {
       const distance = Math.abs(index - centerIndex);
       let scale = 1;
+      let translateY = 0;
+      let rotation = 0;
+      let brightness = 1;
 
       if (distance === 0) {
-        scale = 1.4; // Centre
+        scale = 1.5;
+        translateY = -20;
+        rotation = Math.random() * 6 - 3;
+        brightness = 1.2;
       } else if (distance === 1) {
-        scale = 1.2; // Adjacent
+        scale = 1.25;
+        translateY = -12;
+        rotation = Math.random() * 4 - 2;
+        brightness = 1.1;
       } else if (distance === 2) {
-        scale = 1.1; // Deux places
+        scale = 1.1;
+        translateY = -6;
+        brightness = 1.05;
       }
 
-      item.style.transform = `scale(${scale}) translateY(${distance === 0 ? -12 : distance === 1 ? -6 : 0}px)`;
+      item.style.transform = `
+        scale(${scale}) 
+        translateY(${translateY}px) 
+        rotate(${rotation}deg)
+      `;
+      item.style.filter = `brightness(${brightness})`;
       item.style.zIndex = 10 - distance;
+
+      // Effet de lueur
+      if (distance === 0) {
+        item.style.boxShadow = `
+          0 0 40px rgba(52, 152, 219, 0.8),
+          0 20px 40px rgba(0, 0, 0, 0.4)
+        `;
+      }
     });
   }
 
@@ -854,6 +998,115 @@ class DockRenderer {
   toggleCompactMode() {
     const dock = document.querySelector('.dock-container');
     dock.classList.toggle('compact-mode');
+  }
+
+  // Ajouter des effets visuels avancés
+  addAdvancedVisualEffects() {
+    this.addParticleSystem();
+    this.addMorphingEffect();
+    this.addLiquidEffect();
+    this.addPulseOnActivity();
+  }
+
+  addParticleSystem() {
+    const dock = document.querySelector('.dock-container');
+
+    // Créer un système de particules subtil
+    setInterval(() => {
+      if (Math.random() > 0.7) {
+        this.createParticle(dock);
+      }
+    }, 2000);
+  }
+
+  createParticle(container) {
+    const particle = document.createElement('div');
+    particle.style.cssText = `
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: radial-gradient(circle, rgba(52, 152, 219, 0.8), transparent);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 1;
+      left: ${Math.random() * 100}%;
+      top: ${Math.random() * 100}%;
+      animation: float-particle 4s linear forwards;
+    `;
+
+    container.appendChild(particle);
+
+    // Supprimer après l'animation
+    setTimeout(() => {
+      if (container.contains(particle)) {
+        container.removeChild(particle);
+      }
+    }, 4000);
+  }
+
+  addMorphingEffect() {
+    const items = document.querySelectorAll('.dock-item');
+
+    items.forEach(item => {
+      item.addEventListener('mouseenter', () => {
+        // Effet de morphing au survol
+        item.style.borderRadius = `${12 + Math.random() * 8}px`;
+        item.style.transform += ` rotate(${Math.random() * 4 - 2}deg)`;
+      });
+
+      item.addEventListener('mouseleave', () => {
+        item.style.borderRadius = '';
+      });
+    });
+  }
+
+  addLiquidEffect() {
+    const dock = document.querySelector('.dock-container');
+
+    dock.addEventListener('mousemove', (e) => {
+      const rect = dock.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width;
+      const y = (e.clientY - rect.top) / rect.height;
+
+      // Effet de déformation liquide
+      dock.style.borderRadius = `
+        ${20 + x * 8}px 
+        ${20 + (1 - x) * 8}px 
+        ${20 + (1 - y) * 6}px 
+        ${20 + y * 6}px
+      `;
+    });
+
+    dock.addEventListener('mouseleave', () => {
+      dock.style.borderRadius = '24px';
+    });
+  }
+
+  addPulseOnActivity() {
+    // Faire pulser le dock quand une fenêtre devient active
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class') {
+          const target = mutation.target;
+          if (target.classList.contains('active')) {
+            this.triggerActivityPulse();
+          }
+        }
+      });
+    });
+
+    document.querySelectorAll('.dock-item').forEach(item => {
+      observer.observe(item, { attributes: true });
+    });
+  }
+
+  triggerActivityPulse() {
+    const dock = document.querySelector('.dock-container');
+    dock.style.animation = 'activity-pulse 0.6s ease-out';
+
+    setTimeout(() => {
+      dock.style.animation = '';
+    }, 600);
   }
 }
 

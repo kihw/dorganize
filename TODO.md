@@ -1,111 +1,164 @@
-- **Version 1.1.0** : Mise à jour du format de configuration pour supporter les nouvelles fonctionnalités
-- **Auto Key Configuration** : Section dédiée dans le fichier de configuration
-- **Priorité des raccourcis** : Métadonnées de priorité stockées avec chaque raccourci
-- **Compatibilité ascendante** : Migration automatique des anciennes configurations
+# Dorganize v0.4.2 - Bug Fixes & Code Quality Improvements
 
-### Gestion des Raccourcis Avancée
-- **Système de priorité complet** : 3 niveaux avec résolution automatique des conflits
-- **Auto Key avec remplacements manuels** : Possibilité de personnaliser les raccourcis auto-générés
-- **Validation intelligente** : Prise en compte de la priorité lors de la validation
-- **Nettoyage automatique** : Suppression des raccourcis obsolètes après 30 jours
-
-## 📋 Statuts de Développement
-
-- 🔴 **CRITIQUE** : Bugs bloquants (0 restant)
-- 🟡 **MOYEN** : Améliorations planifiées (0 restant) 
-- 🟢 **FINI** : Fonctionnalités complétées (6 éléments)
-
-## 📊 Résumé des Corrections
-
-| Élément | Type | Priorité | Status | Temps Estimé | Temps Réel |
-|---------|------|----------|--------|--------------|------------|
-| BUG-001 | Bug | 🔴 Haute | ✅ Corrigé | 2-3h | ~2h |
-| BUG-002 | Bug | 🟡 Moyenne | ✅ Corrigé | 1-2h | ~1h |
-| BUG-003 | Bug | 🔴 Haute | ✅ Corrigé | 3-4h | ~3h |
-| BUG-004 | Bug | 🟡 Moyenne | ✅ Corrigé | 2-3h | ~2h |
-| FEAT-001 | Feature | 🟡 Moyenne | ✅ Implémenté | 4-6h | ~4h |
-| FEAT-002 | Feature | 🟡 Moyenne | ✅ Implémenté | 5-7h | ~5h |
-
-## 🚀 Améliorations Futures Possibles (Optionnelles)
-
-### Fonctionnalités Avancées
-1. **Profils de configuration multiples** : Permettre de sauvegarder et charger différents profils Auto Key
-2. **Raccourcis contextuels** : Raccourcis différents selon le contexte (combat, exploration, etc.)
-3. **Interface drag & drop** : Réorganisation visuelle de l'ordre d'initiative par glisser-déposer
-4. **Notifications système** : Alertes lors des changements de configuration ou conflits
-5. **Historique des raccourcis** : Suivi des modifications avec possibilité d'annulation
-
-### Optimisations Techniques
-1. **Tests unitaires** : Ajouter des tests pour les nouvelles fonctionnalités
-2. **Performance** : Optimisation du tri pour de nombreuses fenêtres (>10)
-3. **Cache intelligent** : Mise en cache des configurations fréquemment utilisées
-4. **API REST** : Interface REST pour configuration externe
-5. **Plugin system** : Architecture de plugins pour extensions tierces
-
-### Interface Utilisateur
-1. **Thèmes personnalisables** : Support de thèmes sombres/clairs
-2. **Raccourcis clavier dans l'interface** : Navigation au clavier complète
-3. **Tour guidé** : Tutoriel interactif pour les nouveaux utilisateurs
-4. **Statistiques d'utilisation** : Analyse des raccourcis les plus utilisés
-5. **Interface mobile** : Version web responsive pour configuration à distance
-
-## 📝 Notes Techniques Importantes
-
-### Système de Priorité
-- **AUTO_KEY (3)** : Raccourcis auto-générés et remplacements manuels des Auto Keys
-- **GLOBAL (2)** : Raccourcis globaux (Next Window, Toggle Shortcuts)
-- **WINDOW (1)** : Raccourcis manuels classiques
-
-### Gestion des Conflits
-- Un raccourci de priorité supérieure peut remplacer un raccourci de priorité inférieure
-- Les raccourcis de même priorité sont refusés (premier arrivé, premier servi)
-- Les remplacements manuels des Auto Keys héritent de la priorité AUTO_KEY
-
-### Migration et Compatibilité
-- Migration automatique depuis electron-store vers le nouveau système
-- Format de configuration versionnée (v1.0.0 → v1.1.0)
-- Nettoyage automatique des configurations obsolètes
-- Sauvegarde automatique avant migration
-
-## 📈 Métriques de Qualité
-
-### Couverture des Fonctionnalités
-- ✅ **100%** des bugs critiques résolus
-- ✅ **100%** des fonctionnalités planifiées implémentées
-- ✅ **0** régression détectée
-- ✅ **6** nouvelles fonctionnalités livrées
-
-### Amélioration de l'Expérience Utilisateur
-- ✅ **Élimination** des réinitialisations de configuration
-- ✅ **Résolution** automatique des conflits de raccourcis
-- ✅ **Personnalisation** avancée des raccourcis automatiques
-- ✅ **Interface** intuitive pour la configuration Auto Key
-
-### Performance et Stabilité
-- ✅ **Système de priorité** sans impact sur les performances
-- ✅ **Validation intelligente** des raccourcis
-- ✅ **Gestion d'erreurs** robuste
-- ✅ **Logging détaillé** pour le debugging
-
-## 🎯 Recommandations pour la Prochaine Version
-
-### Version 0.4.2 (Suggestions)
-1. **Tests utilisateur** : Collecte de feedback sur les nouvelles fonctionnalités
-2. **Optimisations** : Amélioration des performances pour >20 fenêtres
-3. **Documentation** : Guide utilisateur complet pour Auto Key
-4. **Monitoring** : Métriques d'utilisation pour identifier les points d'amélioration
-
-### Roadmap Technique
-1. **Refactoring** : Extraction des services en modules indépendants
-2. **TypeScript** : Migration progressive pour améliorer la maintenance
-3. **Architecture modulaire** : Préparation pour le système de plugins
-4. **Tests automatisés** : Suite de tests complète avec CI/CD
+## 📋 Project Overview
+**Project:** Fix critical bugs and improve code quality in Dorganize v0.4.1  
+**Timeline:** 4 weeks (1 senior developer)  
+**Scope:** Address 23 identified issues focusing on stability, performance, and maintainability  
 
 ---
 
-**Projet** : Dorganize v0.4.1 → v0.4.2  
-**Développeur** : VaL  
-**Date de finalisation** : 15 juin 2025  
-**Status global** : ✅ COMPLET - Tous les bugs critiques résolus, nouvelles fonctionnalités implémentées avec succès
+## 🗓️ Project Planning Table
 
-**Résumé Exécutif** : Cette version résout complètement les 4 bugs identifiés et implémente 2 nouvelles fonctionnalités majeures. Le système de priorité des raccourcis et l'Auto Key Configuration améliorent significativement l'expérience utilisateur tout en maintenant la stabilité et les performances de l'application.
+| Status | Action | File | Type | Priority | Complexity | Current State | Target State | Tests to Update |
+|--------|--------|------|------|----------|------------|---------------|--------------|-----------------|
+| TODO | MODIFY | `src/services/WindowManagerWindows.js` | Update | CRITICAL | High | execAsync calls lack timeout/error handling, can crash app | All async operations wrapped in try-catch with timeouts and fallbacks | Create unit tests for error scenarios |
+| TODO | MODIFY | `src/services/WindowManagerWindows.js` | Update | CRITICAL | Medium | JSON.parse without error handling on line 298 | Safe JSON parsing with validation and error recovery | Add JSON parsing error tests |
+| TODO | MODIFY | `src/renderer/modules/EventHandler.js` | Update | CRITICAL | High | Event listeners added but never removed, causing memory leaks | Proper cleanup method with listener removal tracking | Create memory leak detection tests |
+| TODO | CREATE | `src/services/ErrorHandler.js` | New | CRITICAL | Medium | No centralized error handling system | Unified error handling with logging levels and user notifications | Create error handling test suite |
+| TODO | MODIFY | `src/services/WindowManagerWindows.js` | Update | HIGH | Medium | Race condition in processRawWindows() modifying shared state | Mutex/lock mechanism or async queue for window detection | Add concurrency tests |
+| TODO | MODIFY | `src/renderer/modules/UIManager.js` | Update | HIGH | Low | Missing null checks before DOM element access | Comprehensive null checking with graceful fallbacks | Add DOM element access tests |
+| TODO | MODIFY | `src/renderer/modules/AutoKeyManager.js` | Update | HIGH | Low | Inconsistent null checking (elements.autoKeyEnabled?) | Standardized null checking pattern across all modules | Update existing UI tests |
+| TODO | MODIFY | `src/renderer/modules/WindowRenderer.js` | Refactor | HIGH | Medium | Repeated document.getElementById calls in renderWindows() | Cache DOM elements in constructor, update only changed elements | Create DOM efficiency tests |
+| TODO | CREATE | `src/utils/SecurityUtils.js` | New | HIGH | Medium | PowerShell commands vulnerable to injection | Input sanitization and validation utilities | Create security validation tests |
+| TODO | MODIFY | `src/services/ShortcutConfigManager.js` | Update | MEDIUM | Low | Uses os.homedir() instead of app.getPath('userData') | Proper Electron config path using app.getPath('userData') | Update config path tests |
+| TODO | MODIFY | `src/services/WindowManagerWindows.js` | Update | MEDIUM | Low | execAsync timeout hardcoded, no PowerShell availability check | Check PowerShell availability, configurable timeouts | Add system dependency tests |
+| TODO | CREATE | `src/utils/Constants.js` | New | MEDIUM | Low | Magic numbers scattered throughout codebase | Centralized constants file with named values | Create constants validation tests |
+| TODO | MODIFY | `src/renderer/modules/WindowRenderer.js` | Refactor | MEDIUM | High | Complete DOM regeneration on every update (innerHTML) | Incremental DOM updates, only modify changed elements | Create DOM performance tests |
+| TODO | MODIFY | `src/services/ShortcutConfigManager.js` | Update | MEDIUM | Medium | Synchronous file operations blocking main process | Convert to async file operations with proper error handling | Update file I/O tests |
+| TODO | CREATE | `src/utils/Logger.js` | New | MEDIUM | Low | Inconsistent console.log/error usage across modules | Structured logging with levels (debug, info, warn, error) | Create logging system tests |
+| TODO | REFACTOR | `src/renderer/modules/ShortcutManager.js` | Refactor | MEDIUM | Medium | Duplicate shortcut validation logic with AutoKeyManager | Extract shared validation logic to utility class | Merge and update validation tests |
+| TODO | CREATE | `tests/unit/WindowDetection.test.js` | New | MEDIUM | Medium | No unit tests for core window detection functionality | Comprehensive test suite for window detection logic | New test file |
+| TODO | CREATE | `tests/integration/IPC.test.js` | New | MEDIUM | High | No tests for main-renderer IPC communication | Integration tests for all IPC handlers | New test file |
+| TODO | MODIFY | `README.md` | Update | LOW | Low | Claims cross-platform support but Windows-only | Update to clearly state Windows-only support | Update documentation tests |
+| TODO | MODIFY | `package.json` | Update | LOW | Low | Build targets include mac/linux unnecessarily | Remove mac/linux build targets, focus on Windows | Update build tests |
+| TODO | MODIFY | Multiple files | Update | LOW | Low | Hardcoded error messages not using language system | Consistent use of language system for all user messages | Update localization tests |
+| TODO | CREATE | `docs/API.md` | New | LOW | Low | IPC handlers lack documentation | Comprehensive API documentation for all handlers | Create documentation tests |
+| TODO | REFACTOR | `src/services/WindowManagerWindows.js` | Refactor | LOW | High | processRawWindows() function >120 lines | Break into smaller, testable functions | Create function-specific tests |
+| TODO | CREATE | `tests/performance/WindowPolling.test.js` | New | LOW | Medium | No performance tests for window polling | Performance benchmarks and optimization tests | New test file |
+| TODO | MODIFY | `src/main.js` | Update | LOW | Medium | Fixed 5-second polling interval regardless of activity | Adaptive polling based on activity and user preferences | Update polling logic tests |
+
+---
+
+## 🎯 Sprint Breakdown
+
+### Sprint 1 (Week 1) - Critical Stability
+**Focus:** Fix application crashes and memory leaks
+- Fix BUG-005: Error handling in WindowManagerWindows.js
+- Fix BUG-006: Memory leaks in EventHandler.js  
+- Create ErrorHandler.js for centralized error management
+- Add security utilities for PowerShell injection prevention
+
+**Deliverables:**
+- Stable application with comprehensive error handling
+- Memory leak fixes with proper cleanup
+- Basic security measures implemented
+
+### Sprint 2 (Week 2) - Core Functionality
+**Focus:** Fix race conditions and improve window detection
+- Fix BUG-007: Race condition in window detection
+- Fix BUG-008: Null reference exceptions
+- Improve DOM element caching and access
+- Convert file operations to async
+
+**Deliverables:**
+- Reliable window detection without race conditions
+- Robust UI with proper null checking
+- Improved file I/O performance
+
+### Sprint 3 (Week 3) - Performance & Quality
+**Focus:** Optimize performance and code quality
+- Optimize DOM updates (incremental instead of full regeneration)
+- Extract duplicate code and create shared utilities
+- Add comprehensive unit and integration tests
+- Implement structured logging system
+
+**Deliverables:**
+- Significantly improved UI performance
+- Cleaner, more maintainable codebase
+- Test coverage >60%
+
+### Sprint 4 (Week 4) - Documentation & Polish
+**Focus:** Documentation updates and final improvements
+- Update documentation to reflect Windows-only support
+- Add API documentation
+- Performance optimization for window polling
+- Final code cleanup and refactoring
+
+**Deliverables:**
+- Accurate, comprehensive documentation
+- Optimized polling system
+- Production-ready codebase
+
+---
+
+## 📊 Risk Assessment
+
+| Risk | Probability | Impact | Mitigation |
+|------|-------------|--------|------------|
+| PowerShell dependency issues | Medium | High | Add availability checks and fallback mechanisms |
+| DOM performance regression | Low | Medium | Comprehensive performance testing before release |
+| Breaking changes in IPC | Low | High | Maintain backward compatibility, version IPC APIs |
+| Memory leak persistence | Medium | Medium | Extensive memory profiling and automated leak detection |
+
+---
+
+## 🧪 Testing Strategy
+
+### Unit Tests (Target: 70% coverage)
+- Core business logic functions
+- Error handling scenarios
+- Utility functions
+- Window detection algorithms
+
+### Integration Tests
+- IPC communication between main and renderer
+- File system operations
+- PowerShell command execution
+- Auto-key configuration flow
+
+### Performance Tests
+- Memory usage over extended periods
+- DOM update performance
+- Window detection speed
+- Polling efficiency
+
+### Security Tests
+- Input validation and sanitization
+- PowerShell injection prevention
+- File path traversal protection
+
+---
+
+## 📈 Success Metrics
+
+| Metric | Current | Target | How to Measure |
+|--------|---------|--------|----------------|
+| Crash Rate | ~5% sessions | <0.5% sessions | Error reporting analytics |
+| Memory Growth | ~20MB/24h | <5MB/24h | Memory profiling tests |
+| Window Detection Time | ~800ms avg | <300ms avg | Performance benchmarks |
+| Test Coverage | 0% | 60%+ | Jest coverage reports |
+| Code Quality Score | ~6/10 | 8.5+/10 | ESLint + SonarQube analysis |
+
+---
+
+## 🚀 Deployment Plan
+
+### Pre-release Checklist
+- [ ] All critical and high priority issues resolved
+- [ ] Test coverage meets 60% minimum
+- [ ] Performance benchmarks pass
+- [ ] Security scan clean
+- [ ] Documentation updated
+- [ ] Windows compatibility verified on multiple versions
+
+### Release Process
+1. **Internal Testing** (2 days) - Core team validation
+2. **Beta Release** (1 week) - Limited user testing
+3. **Final Release** - Full deployment with rollback plan
+
+---
+
+**Estimated Effort:** 160 hours (4 weeks × 40 hours)  
+**Team Size:** 1 Senior Developer  
+**Release Target:** Dorganize v0.4.2  
+**Success Criteria:** Zero critical bugs, 95% crash reduction, 60%+ test coverage
