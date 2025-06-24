@@ -48,43 +48,21 @@ class PowerShellExecutor {
     // State management
     this.scriptPath = null;
     this.isReady = false;
-    this.isInitializing = false;
-    this.initRetryCount = 0;
+    this.isPowerShellAvailable = null; // Cache availability check
 
-    // PowerShell availability state
-    this.powershellAvailability = {
-      isAvailable: null,
-      version: null,
-      lastCheck: null,
-      checkInterval: 30000, // Re-check every 30 seconds if needed
-      features: {
-        basicExecution: false,
-        jsonConversion: false,
-        windowsAPI: false,
-        errorHandling: false
-      }
+    // Configurable timeouts
+    this.timeouts = {
+      default: 15000,      // 15 seconds for regular operations
+      initialization: 20000, // 20 seconds for initialization
+      test: 10000,         // 10 seconds for tests
+      availability: 5000   // 5 seconds for availability checks
     };
 
-    // Performance tracking
-    this.stats = {
-      totalExecutions: 0,
-      successfulExecutions: 0,
-      timeouts: 0,
-      errors: 0,
-      retries: 0,
-      fallbackUsage: 0,
-      totalExecutionTime: 0,
-      averageExecutionTime: 0,
-      availabilityChecks: 0,
-      lastSuccessfulExecution: null,
-      lastError: null
+    // Retry configuration
+    this.retryConfig = {
+      maxRetries: 3,
+      retryDelay: 1000  // 1 second between retries
     };
-
-    // Active operation tracking
-    this.activeOperations = new Map();
-    this.operationIdCounter = 0;
-
-    console.log('PowerShellExecutor: Initialized with configurable timeouts and availability checking');
   }
 
   /**
@@ -102,15 +80,12 @@ class PowerShellExecutor {
     this.isInitializing = true;
 
     try {
-      console.log('PowerShellExecutor: Starting initialization with availability checking...');
-
-      // Step 1: Check PowerShell availability
+      // Check PowerShell availability first
       const isAvailable = await this.checkPowerShellAvailability();
       if (!isAvailable) {
-        throw new Error('PowerShell is not available or functional on this system');
+        throw new Error('PowerShell is not available on this system');
       }
 
-      // Step 2: Generate detection script
       const script = this.generateWindowDetectionScript();
       if (!script || script.trim().length === 0) {
         throw new Error('Failed to generate PowerShell detection script');
@@ -135,488 +110,140 @@ class PowerShellExecutor {
 
     } catch (error) {
       this.isReady = false;
-      this.initRetryCount++;
-      this.stats.lastError = error.message;
-
-      this.errorHandler.error(error, 'PowerShellExecutor.initialize');
-
-      // Retry logic for transient failures
-      if (this.config.enableRetryOnFailure && this.initRetryCount < this.config.maxRetries) {
-        console.warn(`PowerShellExecutor: Initialization failed, retrying (${this.initRetryCount}/${this.config.maxRetries})...`);
-
-        const retryDelay = Math.min(
-          this.config.retryDelayBase * Math.pow(2, this.initRetryCount),
-          this.config.maxRetryDelay
-        );
-
-        await this.delay(retryDelay);
-        this.isInitializing = false;
-        return this.initialize();
-      }
-
-      console.error('PowerShellExecutor: Failed to initialize after maximum retries');
-      return false;
-
-    } finally {
-      this.isInitializing = false;
+      throw error; // Re-throw to let caller handle initialization failure
     }
   }
 
   /**
    * Wait for ongoing initialization to complete
    */
-  async waitForInitialization() {
-    return new Promise((resolve) => {
-      const checkInterval = setInterval(() => {
-        if (!this.isInitializing) {
-          clearInterval(checkInterval);
-          resolve(this.isReady);
-        }
-      }, 100);
-
-      // Timeout after 30 seconds
-      setTimeout(() => {
-        clearInterval(checkInterval);
-        resolve(false);
-      }, 30000);
-    });
-  }
-
-  /**
-   * Comprehensive PowerShell availability check with feature detection
-   */
-  async checkPowerShellAvailability() {
-    if (this.config.enableAvailabilityCheck === false) {
-      console.log('PowerShellExecutor: Availability check disabled, assuming PowerShell is available');
-      this.powershellAvailability.isAvailable = true;
-      return true;
-    }
-
-    // Check cache first
-    const now = Date.now();
-    if (this.powershellAvailability.isAvailable !== null &&
-      this.powershellAvailability.lastCheck &&
-      (now - this.powershellAvailability.lastCheck) < this.powershellAvailability.checkInterval) {
-      return this.powershellAvailability.isAvailable;
-    }
-
-    this.stats.availabilityChecks++;
-    this.powershellAvailability.lastCheck = now;
-
+  async executeCommand(command, timeout = null) {
     try {
-      console.log('PowerShellExecutor: Checking PowerShell availability and features...');
-
-      // Test 1: Basic PowerShell execution
-      const basicTest = await this.testBasicExecution();
-      if (!basicTest.success) {
-        throw new Error(`Basic execution test failed: ${basicTest.error}`);
-      }
-
-      // Test 2: JSON conversion capability
-      const jsonTest = await this.testJsonConversion();
-      if (!jsonTest.success) {
-        console.warn('PowerShellExecutor: JSON conversion test failed, limited functionality available');
-      }
-
-      // Test 3: Windows API access
-      const apiTest = await this.testWindowsAPIAccess();
-      if (!apiTest.success) {
-        console.warn('PowerShellExecutor: Windows API test failed, using fallback methods');
-      }
-
-      // Test 4: Error handling capability
-      const errorTest = await this.testErrorHandling();
-
-      // Update availability state
-      this.powershellAvailability = {
-        ...this.powershellAvailability,
-        isAvailable: true,
-        version: basicTest.version,
-        features: {
-          basicExecution: basicTest.success,
-          jsonConversion: jsonTest.success,
-          windowsAPI: apiTest.success,
-          errorHandling: errorTest.success
-        }
-      };
-
-      console.log('PowerShellExecutor: PowerShell availability check completed successfully');
-      console.log('PowerShellExecutor: Available features:', this.powershellAvailability.features);
-
-      return true;
-
-    } catch (error) {
-      this.powershellAvailability.isAvailable = false;
-      this.powershellAvailability.lastCheck = now;
-
-      this.errorHandler.warn(`PowerShell availability check failed: ${error.message}`, 'PowerShellExecutor');
-      console.error('PowerShellExecutor: PowerShell is not available or functional');
-
-      return false;
-    }
-  }
-
-  /**
-   * Test basic PowerShell execution
-   */
-  async testBasicExecution() {
-    try {
-      const operationId = this.generateOperationId('basic-test');
-
-      const command = `powershell.exe -ExecutionPolicy ${this.config.executionPolicy} -NoProfile -NonInteractive -Command "$PSVersionTable.PSVersion.ToString()"`;
-
-      const { stdout, stderr } = await this.executeWithTimeout(command, this.config.availabilityTimeout, operationId);
-
-      if (stderr && this.containsCriticalError(stderr)) {
-        throw new Error(`PowerShell execution produced critical errors: ${stderr.substring(0, 200)}`);
-      }
-
-      const version = stdout.trim();
-      if (!version || version.length === 0) {
-        throw new Error('PowerShell did not return version information');
-      }
-
-      return {
-        success: true,
-        version: version,
-        executionTime: this.getOperationTime(operationId)
-      };
-
-    } catch (error) {
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
-
-  /**
-   * Test JSON conversion capability
-   */
-  async testJsonConversion() {
-    try {
-      const operationId = this.generateOperationId('json-test');
-
-      const command = `powershell.exe -ExecutionPolicy ${this.config.executionPolicy} -NoProfile -NonInteractive -Command "@{test='success'; number=42} | ConvertTo-Json"`;
-
-      const { stdout, stderr } = await this.executeWithTimeout(command, this.config.availabilityTimeout, operationId);
-
-      if (stderr && this.containsCriticalError(stderr)) {
-        throw new Error(`JSON test produced errors: ${stderr}`);
-      }
-
-      const result = JSON.parse(stdout.trim());
-      if (result.test !== 'success' || result.number !== 42) {
-        throw new Error('JSON conversion test returned unexpected results');
-      }
-
-      return {
-        success: true,
-        executionTime: this.getOperationTime(operationId)
-      };
-
-    } catch (error) {
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
-
-  /**
-   * Test Windows API access capability
-   */
-  async testWindowsAPIAccess() {
-    try {
-      const operationId = this.generateOperationId('api-test');
-
-      const testScript = `
-        Add-Type -TypeDefinition @"
-        using System;
-        using System.Runtime.InteropServices;
-        public class TestAPI {
-          [DllImport("user32.dll")]
-          public static extern IntPtr GetForegroundWindow();
-        }
-"@
-        [TestAPI]::GetForegroundWindow().ToInt64()
-      `;
-
-      const command = `powershell.exe -ExecutionPolicy ${this.config.executionPolicy} -NoProfile -NonInteractive -Command "${testScript.replace(/"/g, '""')}"`;
-
-      const { stdout, stderr } = await this.executeWithTimeout(command, this.config.availabilityTimeout, operationId);
-
-      if (stderr && this.containsCriticalError(stderr)) {
-        throw new Error(`Windows API test failed: ${stderr}`);
-      }
-
-      const handle = parseInt(stdout.trim());
-      if (isNaN(handle)) {
-        throw new Error('Windows API test did not return valid handle');
-      }
-
-      return {
-        success: true,
-        executionTime: this.getOperationTime(operationId)
-      };
-
-    } catch (error) {
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
-
-  /**
-   * Test error handling capability
-   */
-  async testErrorHandling() {
-    try {
-      const operationId = this.generateOperationId('error-test');
-
-      const command = `powershell.exe -ExecutionPolicy ${this.config.executionPolicy} -NoProfile -NonInteractive -Command "try { throw 'test error' } catch { Write-Output 'error handled' }"`;
-
-      const { stdout } = await this.executeWithTimeout(command, this.config.availabilityTimeout, operationId);
-
-      if (!stdout.includes('error handled')) {
-        throw new Error('Error handling test failed');
-      }
-
-      return {
-        success: true,
-        executionTime: this.getOperationTime(operationId)
-      };
-
-    } catch (error) {
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
-
-  /**
-   * Execute command with configurable timeout and comprehensive error handling
-   */
-  async executeCommand(command, customTimeout = null, operationId = null) {
-    const timeout = customTimeout || this.config.defaultTimeout;
-    const opId = operationId || this.generateOperationId('execute');
-
-    this.stats.totalExecutions++;
-    const startTime = Date.now();
-
-    try {
-      // Input validation
+      // Validate inputs
       if (!command || typeof command !== 'string') {
         throw new Error('Invalid command provided');
       }
 
-      if (command.length > this.config.maxCommandLength) {
-        throw new Error(`Command too long (${command.length} > ${this.config.maxCommandLength}), potential security risk`);
+      // Check PowerShell availability if not cached
+      if (this.isPowerShellAvailable === null) {
+        this.isPowerShellAvailable = await this.checkPowerShellAvailability();
       }
 
-      // Security validation
-      if (this.config.strictValidation) {
-        const validation = this.securityUtils.validateInput(command, 'command');
-        if (!validation.isValid) {
-          throw new Error(`Command validation failed: ${validation.errors.join(', ')}`);
-        }
+      if (!this.isPowerShellAvailable) {
+        throw new Error('PowerShell is not available');
       }
 
-      // Execute with timeout
-      const { stdout, stderr } = await this.executeWithTimeout(command, timeout, opId);
+      // Use provided timeout or default
+      const effectiveTimeout = timeout || this.timeouts.default;
 
-      // Handle stderr warnings
-      if (stderr && stderr.trim()) {
-        console.warn(`PowerShellExecutor: Command stderr (${opId}):`, stderr.substring(0, 500));
-
-        if (this.containsCriticalError(stderr)) {
-          throw new Error(`PowerShell execution error: ${stderr.substring(0, 200)}`);
-        }
+      // Validate and sanitize command
+      const validation = this.securityUtils.validateInput(command, 'command');
+      if (!validation.isValid) {
+        throw new Error(`Command validation failed: ${validation.errors.join(', ')}`);
       }
 
-      // Parse and validate output
-      const result = this.parseOutput(stdout);
-
-      // Update statistics
-      const executionTime = Date.now() - startTime;
-      this.updateStats(true, executionTime);
-      this.stats.lastSuccessfulExecution = new Date().toISOString();
-
-      return result;
+      // Execute with retry logic
+      return await this.executeWithRetry(validation.sanitized, effectiveTimeout);
 
     } catch (error) {
-      const executionTime = Date.now() - startTime;
-      this.updateStats(false, executionTime);
-      this.stats.lastError = error.message;
+      this.errorHandler.error(error, 'PowerShellExecutor.executeCommand');
 
-      // Handle specific error types
-      if (error.code === 'ABORT_ERR' || error.signal === 'SIGTERM') {
-        this.stats.timeouts++;
-        throw new Error(`Command timed out after ${timeout}ms (${opId})`);
+      // Return empty array as fallback for window detection operations
+      if (error.message.includes('timeout') || error.message.includes('PowerShell')) {
+        console.warn('PowerShellExecutor: Falling back to empty result due to error:', error.message);
+        return [];
       }
 
-      if (error.code === 'ENOENT') {
-        throw new Error('PowerShell executable not found');
-      }
-
-      this.errorHandler.error(error, `PowerShellExecutor.executeCommand [${opId}]`);
-
-      // Return empty array for graceful degradation
-      console.warn('PowerShellExecutor: Command failed, returning empty result for graceful degradation');
-      return [];
+      throw error;
     }
   }
 
   /**
-   * Execute command with timeout protection and operation tracking
+   * Execute command with retry logic
    */
-  async executeWithTimeout(command, timeout, operationId) {
-    const abortController = new AbortController();
-    const operation = {
-      id: operationId,
-      command: command.substring(0, 100) + '...',
-      startTime: Date.now(),
-      timeout: timeout,
-      abortController: abortController
-    };
+  async executeWithRetry(command, timeout) {
+    let lastError;
 
-    this.activeOperations.set(operationId, operation);
-
-    // Setup timeout
-    const timeoutId = setTimeout(() => {
-      abortController.abort();
-    }, timeout);
-
-    try {
-      const result = await execAsync(command, {
-        timeout: timeout,
-        encoding: this.config.encoding,
-        windowsHide: this.config.windowsHide,
-        signal: abortController.signal,
-        maxBuffer: this.config.maxBufferSize,
-        env: {
-          ...process.env,
-          PSExecutionPolicyPreference: this.config.executionPolicy
+    for (let attempt = 0; attempt <= this.retryConfig.maxRetries; attempt++) {
+      try {
+        // Add attempt logging for debugging
+        if (attempt > 0) {
+          console.log(`PowerShellExecutor: Retry attempt ${attempt}/${this.retryConfig.maxRetries}`);
         }
-      });
 
-      clearTimeout(timeoutId);
-      this.activeOperations.delete(operationId);
+        const { stdout, stderr } = await execAsync(command, {
+          timeout,
+          encoding: 'utf8',
+          windowsHide: true,
+          maxBuffer: 1024 * 1024 // 1MB buffer limit
+        });
 
-      return result;
+        // Log stderr as warning but don't fail
+        if (stderr && stderr.trim()) {
+          console.warn('PowerShellExecutor: Command stderr:', stderr.substring(0, 200));
+        }
 
-    } catch (execError) {
-      clearTimeout(timeoutId);
-      this.activeOperations.delete(operationId);
-      throw execError;
+        return this.parseOutput(stdout);
+
+      } catch (error) {
+        lastError = error;
+
+        // Don't retry for certain types of errors
+        if (error.code === 'ENOENT' || error.message.includes('not recognized')) {
+          console.error('PowerShellExecutor: PowerShell not found, aborting retries');
+          this.isPowerShellAvailable = false;
+          break;
+        }
+
+        // Don't retry for validation errors
+        if (error.message.includes('validation')) {
+          break;
+        }
+
+        // Wait before retry (except on last attempt)
+        if (attempt < this.retryConfig.maxRetries) {
+          await this.delay(this.retryConfig.retryDelay);
+        }
+      }
     }
+
+    // If we get here, all retries failed
+    throw lastError;
   }
 
   /**
-   * Get Dofus windows with availability checking and fallback
+   * Get Dofus windows using the initialized script
    */
   async getDofusWindows() {
     try {
-      // Ensure PowerShell is available
-      if (!await this.ensurePowerShellAvailable()) {
-        return this.handleUnavailablePowerShell();
-      }
-
-      // Ensure initialization
       if (!this.isReady || !this.scriptPath) {
-        console.log('PowerShellExecutor: Not ready, attempting initialization...');
-        const initialized = await this.initialize();
-        if (!initialized) {
-          console.warn('PowerShellExecutor: Initialization failed, using fallback method');
-          return await this.getWindowsFallback();
-        }
+        await this.initialize();
       }
 
-      const operationId = this.generateOperationId('get-windows');
-      const command = `powershell.exe -ExecutionPolicy ${this.config.executionPolicy} -NoProfile -NonInteractive -File "${this.scriptPath}" get-windows`;
-
-      const result = await this.executeCommand(command, this.config.defaultTimeout, operationId);
-
-      // Validate result
-      if (!Array.isArray(result)) {
-        console.warn('PowerShellExecutor: Invalid result format, using fallback');
-        this.stats.fallbackUsage++;
-        return await this.getWindowsFallback();
+      if (!this.isReady) {
+        console.warn('PowerShellExecutor: Not ready after initialization, returning empty array');
+        return [];
       }
 
-      return result;
-
+      const command = `powershell.exe -ExecutionPolicy Bypass -File "${this.scriptPath}" get-windows`;
+      return await this.executeCommand(command, this.timeouts.default);
     } catch (error) {
       this.errorHandler.error(error, 'PowerShellExecutor.getDofusWindows');
-      console.warn('PowerShellExecutor: Main method failed, using fallback');
-      this.stats.fallbackUsage++;
-      return await this.getWindowsFallback();
+      return []; // Always return array for window detection
     }
-  }
-
-  /**
-   * Ensure PowerShell is available before attempting operations
-   */
-  async ensurePowerShellAvailable() {
-    if (this.powershellAvailability.isAvailable === null) {
-      return await this.checkPowerShellAvailability();
-    }
-
-    // Re-check if last check was too long ago
-    const now = Date.now();
-    if (now - this.powershellAvailability.lastCheck > this.powershellAvailability.checkInterval) {
-      return await this.checkPowerShellAvailability();
-    }
-
-    return this.powershellAvailability.isAvailable;
-  }
-
-  /**
-   * Handle scenarios where PowerShell is unavailable
-   */
-  handleUnavailablePowerShell() {
-    console.error('PowerShellExecutor: PowerShell is not available on this system');
-
-    if (this.config.enableFallbackMethods) {
-      console.log('PowerShellExecutor: Attempting alternative detection methods...');
-      // Could implement alternative detection methods here
-      return [];
-    }
-
-    return [];
   }
 
   /**
    * Fallback method with configurable timeout
    */
-  async getWindowsFallback() {
+  async getWindowsAlternative() {
     try {
-      console.log('PowerShellExecutor: Using fallback detection method');
+      const command = 'powershell.exe -Command "Get-Process | Where-Object { $_.MainWindowTitle -and $_.MainWindowTitle -ne \\'\\' } | Where-Object { $_.MainWindowTitle -like \\' * Release *\\' -or $_.MainWindowTitle -like \\' * Dofus *\\' } | Where-Object { $_.MainWindowTitle -notlike \\' * Ankama Launcher *\\' -and $_.MainWindowTitle -notlike \\' * Organizer *\\' } | ForEach-Object { @{ Handle = [string]$_.MainWindowHandle.ToInt64(); Title = $_.MainWindowTitle; ProcessId = $_.Id; ClassName = \\'Unknown\\'; IsActive = $false; Bounds = @{ X = 0; Y = 0; Width = 800; Height = 600 } } } | ConvertTo-Json -Depth 2"';
 
-      const operationId = this.generateOperationId('fallback');
-      const command = `powershell.exe -ExecutionPolicy ${this.config.executionPolicy} -NoProfile -NonInteractive -Command "Get-Process | Where-Object MainWindowTitle | Where-Object { $_.MainWindowTitle -match 'Dofus|Release' } | Select-Object @{n='Handle';e={$_.MainWindowHandle.ToInt64()}}, @{n='Title';e={$_.MainWindowTitle}}, @{n='ProcessId';e={$_.Id}} | ConvertTo-Json"`;
-
-      const result = await this.executeCommand(command, this.config.fallbackTimeout, operationId);
-
-      // Ensure proper format for fallback results
-      if (Array.isArray(result)) {
-        return result.map(window => ({
-          Handle: window.Handle || '0',
-          Title: window.Title || 'Unknown',
-          ProcessId: window.ProcessId || 0,
-          ClassName: 'Unknown',
-          IsActive: false,
-          Bounds: { X: 0, Y: 0, Width: 800, Height: 600 }
-        }));
-      }
-
-      return [];
-
+      return await this.executeCommand(command, this.timeouts.default);
     } catch (error) {
-      this.errorHandler.error(error, 'PowerShellExecutor.getWindowsFallback');
-      return [];
+      this.errorHandler.error(error, 'PowerShellExecutor.getWindowsAlternative');
+      return []; // Always return array for window detection
     }
   }
 
@@ -1152,37 +779,127 @@ try {
   }
 
   /**
-   * Cleanup resources with enhanced error handling
+   * Create temporary PowerShell script file
+   */
+  async createTempScript(script) {
+    try {
+      const os = require('os');
+      const path = require('path');
+      const fs = require('fs').promises;
+
+      const scriptPath = path.join(os.tmpdir(), 'dorganize-windows-detector.ps1');
+
+      await fs.writeFile(scriptPath, script, 'utf8');
+      return scriptPath;
+    } catch (error) {
+      this.errorHandler.error(error, 'PowerShellExecutor.createTempScript');
+      throw error;
+    }
+  }
+
+  /**
+   * Test PowerShell script
+   */
+  async testScript() {
+    if (!this.scriptPath) {
+      throw new Error('Script path not set');
+    }
+
+    try {
+      const command = `powershell.exe -ExecutionPolicy Bypass -File "${this.scriptPath}" get-windows`;
+      const { stderr } = await execAsync(command, {
+        timeout: this.timeouts.test,
+        encoding: 'utf8',
+        windowsHide: true
+      });
+
+      if (stderr && stderr.trim()) {
+        console.warn('PowerShellExecutor: Test stderr:', stderr);
+        throw new Error(`PowerShell test failed: ${stderr}`);
+      }
+
+      console.log('PowerShellExecutor: Test successful');
+    } catch (error) {
+      this.errorHandler.error(error, 'PowerShellExecutor.testScript');
+      throw error;
+    }
+  }
+
+  /**
+   * Check if PowerShell is available
+   */
+  async checkPowerShellAvailability() {
+    try {
+      await execAsync('powershell.exe -Command "Write-Output test"', {
+        timeout: this.timeouts.availability,
+        windowsHide: true
+      });
+
+      console.log('PowerShellExecutor: PowerShell availability confirmed');
+      this.isPowerShellAvailable = true;
+      return true;
+    } catch (error) {
+      console.warn('PowerShellExecutor: PowerShell not available:', error.message);
+      this.errorHandler.warn('PowerShell not available', 'PowerShellExecutor');
+      this.isPowerShellAvailable = false;
+      return false;
+    }
+  }
+
+  /**
+   * Configure timeouts
+   */
+  configureTimeouts(timeouts) {
+    this.timeouts = { ...this.timeouts, ...timeouts };
+    console.log('PowerShellExecutor: Timeouts configured:', this.timeouts);
+  }
+
+  /**
+   * Configure retry behavior
+   */
+  configureRetry(retryConfig) {
+    this.retryConfig = { ...this.retryConfig, ...retryConfig };
+    console.log('PowerShellExecutor: Retry configuration updated:', this.retryConfig);
+  }
+
+  /**
+   * Utility method for delays
+   */
+  async delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Get current configuration
+   */
+  getConfiguration() {
+    return {
+      timeouts: this.timeouts,
+      retryConfig: this.retryConfig,
+      isReady: this.isReady,
+      isPowerShellAvailable: this.isPowerShellAvailable,
+      scriptPath: this.scriptPath
+    };
+  }
+
+  /**
+   * Cleanup resources
    */
   async cleanup() {
     try {
-      console.log('PowerShellExecutor: Starting cleanup...');
-
-      // Cancel active operations
-      this.cancelAllOperations();
-
-      // Cleanup script file
       if (this.scriptPath) {
-        try {
-          await fs.unlink(this.scriptPath);
-          console.log('PowerShellExecutor: Cleaned up script file');
-        } catch (unlinkError) {
-          this.errorHandler.warn(`Failed to cleanup script: ${unlinkError.message}`, 'PowerShellExecutor');
-        }
+        const fs = require('fs').promises;
+        await fs.unlink(this.scriptPath);
+        console.log('PowerShellExecutor: Cleaned up script file');
       }
 
       // Reset state
-      this.scriptPath = null;
       this.isReady = false;
-      this.isInitializing = false;
-      this.initRetryCount = 0;
-      this.powershellAvailability.isAvailable = null;
-      this.powershellAvailability.lastCheck = null;
-
-      console.log('PowerShellExecutor: Cleanup completed');
+      this.isPowerShellAvailable = null;
+      this.scriptPath = null;
 
     } catch (error) {
-      this.errorHandler.error(error, 'PowerShellExecutor.cleanup');
+      this.errorHandler.warn(`Failed to cleanup script: ${error.message}`, 'PowerShellExecutor');
     }
   }
 }
