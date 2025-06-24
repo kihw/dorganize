@@ -1,6 +1,6 @@
 {
   "name": "dorganize",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "description": "A Windows-only window organizer for Dofus with keyboard shortcuts, window management, and navigation dock - Major performance and code quality improvements",
   "main": "src/main.js",
   "scripts": {
