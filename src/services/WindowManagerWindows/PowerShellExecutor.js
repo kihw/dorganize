@@ -235,11 +235,10 @@ class PowerShellExecutor {
 
   /**
    * Fallback method with configurable timeout
-   */
-  async getWindowsAlternative() {
+   */  async getWindowsAlternative() {
     try {
-      const command = 'powershell.exe -Command "Get-Process | Where-Object { $_.MainWindowTitle -and $_.MainWindowTitle -ne \\'\\' } | Where-Object { $_.MainWindowTitle -like \\' * Release *\\' -or $_.MainWindowTitle -like \\' * Dofus *\\' } | Where-Object { $_.MainWindowTitle -notlike \\' * Ankama Launcher *\\' -and $_.MainWindowTitle -notlike \\' * Organizer *\\' } | ForEach-Object { @{ Handle = [string]$_.MainWindowHandle.ToInt64(); Title = $_.MainWindowTitle; ProcessId = $_.Id; ClassName = \\'Unknown\\'; IsActive = $false; Bounds = @{ X = 0; Y = 0; Width = 800; Height = 600 } } } | ConvertTo-Json -Depth 2"';
-
+      const command = 'powershell.exe -Command "Get-Process | Where-Object { $_.MainWindowTitle -and $_.MainWindowTitle -ne \'\' } | Where-Object { $_.MainWindowTitle -like \'* Release *\' -or $_.MainWindowTitle -like \'* Dofus *\' } | Where-Object { $_.MainWindowTitle -notlike \'* Ankama Launcher *\' -and $_.MainWindowTitle -notlike \'* Organizer *\' } | ForEach-Object { @{ Handle = [string]$_.MainWindowHandle.ToInt64(); Title = $_.MainWindowTitle; ProcessId = $_.Id; ClassName = \'Unknown\'; IsActive = $false; Bounds = @{ X = 0; Y = 0; Width = 800; Height = 600 } } } | ConvertTo-Json -Depth 2"';
+      
       return await this.executeCommand(command, this.timeouts.default);
     } catch (error) {
       this.errorHandler.error(error, 'PowerShellExecutor.getWindowsAlternative');
