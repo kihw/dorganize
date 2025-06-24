@@ -26,6 +26,85 @@ class WindowStateManager {
 
         this.initializeStorage();
     }
+
+    /**
+     * Initialize storage and load existing data
+     */
+    initializeStorage() {
+        try {
+            // Ensure all storage keys exist with default values
+            Object.values(this.storageKeys).forEach(key => {
+                if (!this.store.has(key)) {
+                    this.store.set(key, {});
+                }
+            });
+
+            console.log('WindowStateManager: Storage initialized');
+        } catch (error) {
+            this.errorHandler.error(error, 'WindowStateManager.initializeStorage');
+        }
+    }
+
+    /**
+     * Process and update window states from raw window data
+     * @param {Array} rawWindows - Raw window data from detection
+     * @returns {Array} Processed windows with state information
+     */
+    processWindows(rawWindows) {
+        try {
+            // Step 1: Process all raw windows into our data structure
+            const { processedWindows, currentWindowIds } = this.processAllRawWindows(rawWindows);
+
+            // Step 2: Clean up stale windows
+            this.cleanupStaleWindows(currentWindowIds);
+
+            // Step 3: Update metadata
+            this.updateProcessingMetadata(processedWindows);
+
+            return processedWindows;
+        } catch (error) {
+            this.errorHandler.error(error, 'WindowStateManager.processWindows');
+            return [];
+        }
+    }
+
+    /**
+     * Process all raw windows into our structured format
+     * @param {Array} rawWindows - Raw window data from detection
+     * @returns {Object} Object containing processedWindows array and currentWindowIds Set
+     * @private
+     */
+    processAllRawWindows(rawWindows) {
+        const processedWindows = [];
+        const currentWindowIds = new Set();
+
+        for (const rawWindow of rawWindows) {
+            const processedWindow = this.processWindow(rawWindow);
+            if (processedWindow) {
+                processedWindows.push(processedWindow);
+                currentWindowIds.add(processedWindow.id);
+            }
+        }
+
+        return { processedWindows, currentWindowIds };
+    }
+
+    /**
+     * Updates metadata after processing and notifies listeners
+     * @param {Array} processedWindows - The processed window data
+     * @private
+     */
+    updateProcessingMetadata(processedWindows) {
+        // Update last state update time
+        this.lastStateUpdate = Date.now();
+
+        // Notify callbacks of state change
+        this.notifyStateChange(processedWindows);
+
+        console.log(`WindowStateManager: Processed ${processedWindows.length} windows`);
+
+        return processedWindows;
+    }
 }
 
 module.exports = WindowStateManager;
@@ -55,33 +134,58 @@ initializeStorage() {
  */
 processWindows(rawWindows) {
     try {
-        const processedWindows = [];
-        const currentWindowIds = new Set();
+        // Step 1: Process all raw windows into our data structure
+        const { processedWindows, currentWindowIds } = this.processAllRawWindows(rawWindows);
 
-        for (const rawWindow of rawWindows) {
-            const processedWindow = this.processWindow(rawWindow);
-            if (processedWindow) {
-                processedWindows.push(processedWindow);
-                currentWindowIds.add(processedWindow.id);
-            }
-        }
-
-        // Clean up stale windows
+        // Step 2: Clean up stale windows
         this.cleanupStaleWindows(currentWindowIds);
 
-        // Update last state update time
-        this.lastStateUpdate = Date.now();
+        // Step 3: Update metadata
+        this.updateProcessingMetadata(processedWindows);
 
-        // Notify callbacks of state change
-        this.notifyStateChange(processedWindows);
-
-        console.log(`WindowStateManager: Processed ${processedWindows.length} windows`);
         return processedWindows;
-
     } catch (error) {
         this.errorHandler.error(error, 'WindowStateManager.processWindows');
         return [];
     }
+}
+
+/**
+ * Process all raw windows into our structured format
+ * @param {Array} rawWindows - Raw window data from detection
+ * @returns {Object} Object containing processedWindows array and currentWindowIds Set
+ * @private
+ */
+processAllRawWindows(rawWindows) {
+    const processedWindows = [];
+    const currentWindowIds = new Set();
+
+    for (const rawWindow of rawWindows) {
+        const processedWindow = this.processWindow(rawWindow);
+        if (processedWindow) {
+            processedWindows.push(processedWindow);
+            currentWindowIds.add(processedWindow.id);
+        }
+    }
+
+    return { processedWindows, currentWindowIds };
+}
+
+/**
+ * Updates metadata after processing and notifies listeners
+ * @param {Array} processedWindows - The processed window data
+ * @private
+ */
+updateProcessingMetadata(processedWindows) {
+    // Update last state update time
+    this.lastStateUpdate = Date.now();
+
+    // Notify callbacks of state change
+    this.notifyStateChange(processedWindows);
+
+    console.log(`WindowStateManager: Processed ${processedWindows.length} windows`);
+
+    return processedWindows;
 }
 
 /**

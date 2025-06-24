@@ -1,6 +1,6 @@
-# Dorganize v0.4.1 - Cross-Platform Edition ✅
+# Dorganize v0.4.2 - Windows Edition
 
-A modern cross-platform window organizer for Dofus with keyboard shortcuts, window management, and navigation dock. This version includes **major bug fixes** and the new **Auto Key Configuration System**.
+A modern Windows-only window organizer for Dofus with keyboard shortcuts, window management, and navigation dock. This version includes **major code quality improvements**, **performance optimizations**, and **bug fixes**.
 
 ## 🆕 What's New in v0.4.1
 
@@ -161,22 +161,22 @@ Examples:
 3. Verify shortcuts don't conflict with other applications
 4. Try different key combinations
 
-## 📋 System Requirements
+## 🖥️ System Requirements
 
-### **Windows**
-- Windows 10 or later (Windows 11 recommended)
-- .NET Framework 4.7.2 or later
-- 50MB free disk space
+### Platform Compatibility
+- **Windows Only**: This application is designed to work exclusively on Windows operating systems
+- **Supported Windows Versions**: Windows 10 and Windows 11
+- **Not Compatible**: macOS and Linux platforms are not supported
 
-### **Linux**
-- Modern Linux distribution (Ubuntu 18.04+, Fedora 30+, etc.)
-- X11 window system (Wayland support coming soon)
-- Required packages: `wmctrl`, `xdotool`, `xprop`
+### Technical Requirements
+- **PowerShell**: Required for window detection and activation
+- **Windows API Access**: Requires necessary permissions to interact with window handles
+- **Administrator Rights**: May be needed for some window operations
 
-### **macOS**
-- macOS 10.14 (Mojave) or later
-- 50MB free disk space
-- Accessibility permissions required
+### Recommended Hardware
+- **Memory**: At least 4GB RAM
+- **Storage**: 200MB available space
+- **Display**: 1280×720 or higher resolution
 
 ## 📊 Performance & Compatibility
 
@@ -206,7 +206,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Credits
 
 - **Original Inspiration**: AutoIt-based Dofus organizers
-- **Cross-platform Port**: Modern Electron-based architecture  
+- **Windows-focused**: Modern Electron-based architecture optimized for Windows  
 - **Community**: Bug reports and feature suggestions
 - **Version 0.4.1**: Bug fixes and Auto Key Configuration by VaL
 

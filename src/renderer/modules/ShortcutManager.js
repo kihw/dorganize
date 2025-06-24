@@ -1,3 +1,6 @@
+const ShortcutUtils = require('../../utils/ShortcutUtils');
+const { logger } = require('../../utils/Logger');
+
 /**
  * ShortcutManager - Handles all shortcut recording and management functionality
  */
@@ -9,8 +12,13 @@ class ShortcutManager {
     this.currentGlobalShortcutType = null;
     this.elements = {};
 
+    // Set up utilities
+    this.utils = ShortcutUtils;
+
     this.initializeElements();
     this.setupEventListeners();
+
+    logger.debug('ShortcutManager: Initialized');
   }
 
   initializeElements() {
@@ -271,22 +279,18 @@ class ShortcutManager {
       }, 300);
     }, 3000);
   }
-
-  // Utility methods for external use
+  // Utility methods for external use - now using shared ShortcutUtils
   validateShortcut(shortcut) {
-    // Basic validation - could be expanded
-    return shortcut && shortcut.trim().length > 0 && shortcut !== 'Press any key or combination...';
+    return ShortcutUtils.validateShortcut(shortcut);
   }
 
   formatShortcut(shortcut) {
-    if (!shortcut) return 'No shortcut';
+    return ShortcutUtils.formatShortcut(shortcut);
+  }
 
-    return shortcut
-      .replace(/CommandOrControl/g, 'Ctrl')
-      .replace(/\+/g, ' + ')
-      .split(' + ')
-      .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-      .join(' + ');
+  // For backward compatibility
+  parseShortcut(shortcut) {
+    return ShortcutUtils.parseShortcut(shortcut);
   }
 }
 

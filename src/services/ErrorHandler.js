@@ -7,6 +7,7 @@ const { app, dialog, ipcMain } = require('electron');
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
+const { localizedErrors } = require('../utils/LocalizedErrorMessages');
 
 class ErrorHandler {
   constructor() {
@@ -26,8 +27,7 @@ class ErrorHandler {
     this.isProcessingQueue = false;
     this.startTime = Date.now();
     this.errorCounts = new Map();
-    this.lastErrorTimes = new Map();
-    this.rateLimitWindow = 60000; // 1 minute
+    this.lastErrorTimes = new Map(); this.rateLimitWindow = 60000; // 1 minute
     this.maxErrorsPerWindow = 10;
 
     this.initializeLogging();
@@ -41,10 +41,10 @@ class ErrorHandler {
     try {
       const logDir = path.dirname(this.logFile);
       await fs.mkdir(logDir, { recursive: true });
-      
+
       // Rotate logs on startup if needed
       await this.rotateLogsIfNeeded();
-      
+
       // Log startup
       await this.logToFile('INFO', 'ErrorHandler initialized', {
         nodeVersion: process.version,
@@ -53,7 +53,7 @@ class ErrorHandler {
         arch: process.arch,
         logFile: this.logFile
       });
-      
+
       console.log('ErrorHandler: Logging system initialized');
     } catch (error) {
       console.error('ErrorHandler: Failed to initialize logging:', error);
@@ -92,10 +92,10 @@ class ErrorHandler {
       }
 
       const errorInfo = this.parseError(error, context, severity, metadata);
-      
+
       // Add to processing queue
       this.errorQueue.push(errorInfo);
-      
+
       // Process queue if not already processing
       if (!this.isProcessingQueue) {
         await this.processErrorQueue();
@@ -165,7 +165,7 @@ class ErrorHandler {
   isRateLimited(error, context) {
     const errorKey = `${context}:${error?.message || error}`;
     const now = Date.now();
-    
+
     // Clean old entries
     for (const [key, time] of this.lastErrorTimes) {
       if (now - time > this.rateLimitWindow) {
@@ -292,7 +292,7 @@ class ErrorHandler {
   async rotateLogsIfNeeded() {
     try {
       const stats = await fs.stat(this.logFile).catch(() => null);
-      
+
       if (stats && stats.size > this.maxLogSize) {
         await this.rotateLogs();
       }
@@ -313,7 +313,7 @@ class ErrorHandler {
       for (let i = this.maxLogFiles - 1; i >= 1; i--) {
         const oldFile = path.join(logDir, `${logBaseName}.${i}.log`);
         const newFile = path.join(logDir, `${logBaseName}.${i + 1}.log`);
-        
+
         try {
           await fs.rename(oldFile, newFile);
         } catch (error) {
@@ -323,12 +323,12 @@ class ErrorHandler {
 
       // Move current log to .1
       const rotatedFile = path.join(logDir, `${logBaseName}.1.log`);
-      await fs.rename(this.logFile, rotatedFile).catch(() => {});
+      await fs.rename(this.logFile, rotatedFile).catch(() => { });
 
       // Clean up old files beyond max count
       for (let i = this.maxLogFiles + 1; i <= this.maxLogFiles + 5; i++) {
         const oldFile = path.join(logDir, `${logBaseName}.${i}.log`);
-        await fs.unlink(oldFile).catch(() => {});
+        await fs.unlink(oldFile).catch(() => { });
       }
 
       console.log('ErrorHandler: Log files rotated');
@@ -343,7 +343,6 @@ class ErrorHandler {
   shouldShowUserNotification(severity) {
     return ['ERROR', 'FATAL'].includes(severity);
   }
-
   /**
    * Show user notification
    */
@@ -354,16 +353,20 @@ class ErrorHandler {
     }
 
     const { severity, message, context } = errorInfo;
-    
+
     // Simplify message for user
     const userMessage = this.simplifyErrorMessage(message);
-    
+
+    // Use translations for UI text
     const options = {
       type: severity === 'FATAL' ? 'error' : 'warning',
-      title: 'Dorganize Error',
-      message: `An error occurred in ${context}`,
+      title: localizedErrors.getMessage('error_title'),
+      message: localizedErrors.getMessage('error_occurred', context),
       detail: userMessage,
-      buttons: ['OK', 'Report Issue'],
+      buttons: [
+        localizedErrors.getMessage('error_ok_button'),
+        localizedErrors.getMessage('error_report_button')
+      ],
       defaultId: 0
     };
 
@@ -378,29 +381,11 @@ class ErrorHandler {
   }
 
   /**
-   * Simplify error message for users
+   * Simplify error message for users with translations
    */
   simplifyErrorMessage(message) {
-    // Common error message simplifications
-    const simplifications = {
-      'ENOENT': 'File or directory not found',
-      'EACCES': 'Permission denied',
-      'ETIMEDOUT': 'Operation timed out',
-      'ECONNREFUSED': 'Connection refused',
-      'Cannot read property': 'Invalid data access',
-      'Cannot read properties': 'Invalid data access',
-      'fetch failed': 'Network request failed',
-      'JSON.parse': 'Invalid data format'
-    };
-
-    for (const [pattern, replacement] of Object.entries(simplifications)) {
-      if (message.includes(pattern)) {
-        return replacement;
-      }
-    }
-
-    // If no simplification found, return truncated original
-    return message.length > 100 ? message.substring(0, 100) + '...' : message;
+    // Use the shared localized error message utility
+    return localizedErrors.simplifyErrorMessage(message);
   }
 
   /**
@@ -416,7 +401,7 @@ class ErrorHandler {
   async reportCrash(errorInfo) {
     // Placeholder for crash reporting service integration
     // This could integrate with services like Sentry, Bugsnag, etc.
-    
+
     try {
       const crashReport = {
         ...errorInfo,
@@ -427,7 +412,7 @@ class ErrorHandler {
 
       // For now, just log that we would report
       await this.logToFile('INFO', 'Crash report generated', { crashReportId: errorInfo.id });
-      
+
     } catch (error) {
       console.error('ErrorHandler: Failed to report crash:', error);
     }
@@ -438,7 +423,7 @@ class ErrorHandler {
    */
   openIssueReporting(errorInfo) {
     const { shell } = require('electron');
-    
+
     // Create GitHub issue URL with pre-filled information
     const issueTitle = encodeURIComponent(`Error in ${errorInfo.context}: ${errorInfo.message.substring(0, 50)}...`);
     const issueBody = encodeURIComponent(`
@@ -468,7 +453,6 @@ Please describe what you were doing when this error occurred.
     const issueUrl = `https://github.com/kihw/dorganize/issues/new?title=${issueTitle}&body=${issueBody}`;
     shell.openExternal(issueUrl);
   }
-
   /**
    * Handle fatal errors
    */
@@ -476,19 +460,22 @@ Please describe what you were doing when this error occurred.
     try {
       // Log fatal error
       await this.logToFile('FATAL', 'Application fatal error', errorInfo);
-      
+
       // Show critical error dialog
       const options = {
         type: 'error',
-        title: 'Critical Error',
-        message: 'Dorganize has encountered a critical error and needs to restart.',
+        title: localizedErrors.getMessage('error_title'),
+        message: localizedErrors.getMessage('error_fatal'),
         detail: this.simplifyErrorMessage(errorInfo.message),
-        buttons: ['Restart', 'Close'],
+        buttons: [
+          localizedErrors.getMessage('error_restart_button'),
+          localizedErrors.getMessage('error_close_button')
+        ],
         defaultId: 0
       };
 
       const result = await dialog.showMessageBox(null, options);
-      
+
       if (result.response === 0) {
         // Restart application
         app.relaunch();
@@ -497,7 +484,7 @@ Please describe what you were doing when this error occurred.
         // Close application
         app.exit(1);
       }
-      
+
     } catch (error) {
       console.error('ErrorHandler: Error handling fatal error:', error);
       // Force exit as last resort
@@ -512,7 +499,7 @@ Please describe what you were doing when this error occurred.
     if (typeof level === 'string') {
       level = this.logLevels[level.toUpperCase()];
     }
-    
+
     if (level !== undefined && level >= 0 && level <= 4) {
       this.currentLogLevel = level;
       console.log(`ErrorHandler: Log level set to ${Object.keys(this.logLevels)[level]}`);
@@ -524,7 +511,7 @@ Please describe what you were doing when this error occurred.
    */
   getStatistics() {
     const totalErrors = Array.from(this.errorCounts.values()).reduce((sum, count) => sum + count, 0);
-    
+
     return {
       totalErrors,
       uniqueErrors: this.errorCounts.size,
@@ -543,13 +530,13 @@ Please describe what you were doing when this error occurred.
     try {
       // Process remaining errors in queue
       await this.processErrorQueue();
-      
+
       // Log shutdown
       await this.logToFile('INFO', 'ErrorHandler shutting down', {
         uptime: Date.now() - this.startTime,
         totalErrors: Array.from(this.errorCounts.values()).reduce((sum, count) => sum + count, 0)
       });
-      
+
       console.log('ErrorHandler: Cleanup completed');
     } catch (error) {
       console.error('ErrorHandler: Error during cleanup:', error);

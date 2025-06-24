@@ -78,5 +78,18 @@
   "classes_eliotrope": "Eliotrope",
   "classes_huppermage": "Huppermage",
   "classes_ouginak": "Ouginak",
-  "classes_forgelance": "Forgelance"
+  "classes_forgelance": "Forgelance",
+  "error_title": "Erreur Dorganize",
+  "error_occurred": "Une erreur s'est produite dans {0}",
+  "error_report_button": "Signaler le problème",
+  "error_ok_button": "OK",
+  "error_restart_button": "Redémarrer",
+  "error_close_button": "Fermer",
+  "error_fatal": "Dorganize a rencontré une erreur critique et doit redémarrer.",
+  "error_file_not_found": "Fichier introuvable : {0}",
+  "error_permission_denied": "Accès refusé : {0}",
+  "error_invalid_format": "Format invalide dans le fichier : {0}",
+  "error_connection_failed": "Échec de la connexion : {0}",
+  "error_operation_timeout": "L'opération a expiré : {0}",
+  "error_unknown": "Une erreur inconnue s'est produite : {0}"
 }

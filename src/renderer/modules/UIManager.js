@@ -1,351 +1,1031 @@
+const { getErrorHandler } = require('../../services/ErrorHandler');
+
 /**
- * UIManager - Handles UI updates, status indicators, and visual feedback
+ * UIManager - Handles DOM manipulation with comprehensive null checking and graceful fallbacks
  */
 class UIManager {
-  constructor(configRenderer) {
-    this.configRenderer = configRenderer;
-  }
+  constructor() {
+    this.errorHandler = getErrorHandler();
+    this.elements = new Map(); // Cache for DOM elements
+    this.observers = new Map(); // MutationObservers for dynamic content
+    this.isInitialized = false;
+    this.retryAttempts = 3;
+    this.retryDelay = 500;
 
-  updateShortcutsStatus() {
-    const settings = this.configRenderer.getSettings();
-    if (settings && typeof settings.shortcutsEnabled === 'boolean') {
-      this.updateShortcutsStatusText(settings.shortcutsEnabled);
-    }
-  }
-
-  updateShortcutsStatusText(enabled) {
-    const elements = this.configRenderer.getElements();
-
-    if (elements.shortcutsStatusText) {
-      elements.shortcutsStatusText.textContent = `Shortcuts: ${enabled ? 'Enabled' : 'Disabled'}`;
-      const statusEl = elements.shortcutsStatus;
-      statusEl.className = `shortcuts-status show ${enabled ? 'enabled' : 'disabled'}`;
-
-      setTimeout(() => statusEl.classList.remove('show'), 3000);
-    }
-
-    if (elements.toggleShortcutsText) {
-      elements.toggleShortcutsText.textContent = enabled ? 'Disable Shortcuts' : 'Enable Shortcuts';
-    }
-  }
-
-  updateLanguageUI() {
-    const language = this.configRenderer.getLanguage();
-    if (language && Object.keys(language).length > 0) {
-      console.log('UIManager: Language UI updated');
-      // Update language-dependent text in the UI
-      this.updateButtonTexts();
-      this.updateLabels();
-    }
-  }
-
-  updateButtonTexts() {
-    const language = this.configRenderer.getLanguage();
-    const elements = this.configRenderer.getElements();
-
-    // Update button texts based on current language
-    if (elements.refreshBtn) {
-      const refreshSpan = elements.refreshBtn.querySelector('span');
-      if (refreshSpan) {
-        refreshSpan.textContent = language.displayGUI_refreshsort || 'Refresh';
-      }
-    }
-
-    // Update other button texts as needed
-    this.updateDockLabels();
-  }
-
-  updateLabels() {
-    const language = this.configRenderer.getLanguage();
-
-    // Update static labels
-    const labelMappings = [
-      { selector: '#dock-label', key: 'displayGUI_dock' },
-      { selector: '.detail-label', key: 'displayGUI_personnage', index: 0 },
-      { selector: '.detail-label', key: 'displayGUI_classe', index: 1 },
-      { selector: '.detail-label', key: 'displayGUI_initiative', index: 2 },
-      { selector: '.detail-label', key: 'displayGUI_raccourci', index: 3 }
-    ];
-
-    labelMappings.forEach(mapping => {
-      const elements = document.querySelectorAll(mapping.selector);
-      const element = mapping.index !== undefined ? elements[mapping.index] : elements[0];
-
-      if (element && language[mapping.key]) {
-        element.textContent = language[mapping.key];
-      }
-    });
-  }
-
-  updateDockLabels() {
-    const language = this.configRenderer.getLanguage();
-    const dockLabel = document.getElementById('dock-label');
-
-    if (dockLabel && language.displayGUI_dock) {
-      dockLabel.textContent = language.displayGUI_dock;
-    }
-
-    // Update dock position options
-    const dockPosition = document.getElementById('dock-position');
-    if (dockPosition && language) {
-      const options = dockPosition.querySelectorAll('option');
-      const positionMappings = {
-        'NW': language.displayGUI_dock_NW || 'Top Left',
-        'NE': language.displayGUI_dock_NE || 'Top Right',
-        'SW': language.displayGUI_dock_SW || 'Bottom Left',
-        'SE': language.displayGUI_dock_SE || 'Bottom Right',
-        'N': language.displayGUI_dock_N || 'Top (Horizontal)',
-        'S': language.displayGUI_dock_S || 'Bottom (Horizontal)'
-      };
-
-      options.forEach(option => {
-        if (positionMappings[option.value]) {
-          option.textContent = positionMappings[option.value];
-        }
-      });
-    }
-  }
-
-  showMessage(message, type = 'info', duration = 3000) {
-    // Create a temporary message element
-    const messageEl = document.createElement('div');
-    messageEl.className = `ui-message ${type}`;
-    messageEl.textContent = message;
-    messageEl.style.cssText = `
-      position: fixed;
-      top: 80px;
-      right: 20px;
-      padding: 12px 20px;
-      border-radius: 6px;
-      font-weight: 500;
-      z-index: 10000;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      ${type === 'success' ? 'background: #27ae60; color: white;' : ''}
-      ${type === 'error' ? 'background: #e74c3c; color: white;' : ''}
-      ${type === 'info' ? 'background: #3498db; color: white;' : ''}
-      ${type === 'warning' ? 'background: #f39c12; color: white;' : ''}
-    `;
-
-    document.body.appendChild(messageEl);
-
-    // Animate in
-    setTimeout(() => {
-      messageEl.style.transform = 'translateX(0)';
-      messageEl.style.opacity = '1';
-    }, 10);
-
-    // Remove after duration
-    setTimeout(() => {
-      messageEl.style.opacity = '0';
-      messageEl.style.transform = 'translateX(100%)';
-      setTimeout(() => {
-        if (messageEl.parentNode) {
-          messageEl.parentNode.removeChild(messageEl);
-        }
-      }, 300);
-    }, duration);
-  }
-
-  showSuccessMessage(message) {
-    this.showMessage(message, 'success');
-  }
-
-  showErrorMessage(message) {
-    this.showMessage(message, 'error');
-  }
-
-  showWarningMessage(message) {
-    this.showMessage(message, 'warning');
-  }
-
-  showInfoMessage(message) {
-    this.showMessage(message, 'info');
-  }
-
-  updateWindowCount() {
-    const elements = this.configRenderer.getElements();
-    const windows = this.configRenderer.getWindows();
-
-    if (elements.windowCount) {
-      const count = windows.length;
-      const language = this.configRenderer.getLanguage();
-
-      let text = `${count} windows detected`;
-      if (language) {
-        if (count === 0) {
-          text = language.displayTray_window_0 || 'no window';
-        } else if (count === 1) {
-          text = language.displayTray_window_1 || 'one window';
-        } else {
-          text = (language.displayTray_window_N || '{0} windows').replace('{0}', count);
-        }
-      }
-
-      elements.windowCount.textContent = text;
-    }
-  }
-
-  setElementEnabled(elementId, enabled) {
-    const element = document.getElementById(elementId);
-    if (element) {
-      element.disabled = !enabled;
-      if (enabled) {
-        element.classList.remove('disabled');
-      } else {
-        element.classList.add('disabled');
-      }
-    }
-  }
-
-  setElementVisible(elementId, visible) {
-    const element = document.getElementById(elementId);
-    if (element) {
-      element.style.display = visible ? '' : 'none';
-    }
-  }
-
-  addLoadingState(elementId) {
-    const element = document.getElementById(elementId);
-    if (element) {
-      element.classList.add('loading');
-      element.disabled = true;
-    }
-  }
-
-  removeLoadingState(elementId) {
-    const element = document.getElementById(elementId);
-    if (element) {
-      element.classList.remove('loading');
-      element.disabled = false;
-    }
-  }
-
-  updateProgressIndicator(current, total, message = '') {
-    // Create or update a progress indicator
-    let progressEl = document.getElementById('ui-progress-indicator');
-
-    if (!progressEl) {
-      progressEl = document.createElement('div');
-      progressEl.id = 'ui-progress-indicator';
-      progressEl.style.cssText = `
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: rgba(0, 0, 0, 0.9);
-        color: white;
-        padding: 20px;
-        border-radius: 8px;
-        z-index: 10001;
-        min-width: 300px;
-        text-align: center;
-      `;
-      document.body.appendChild(progressEl);
-    }
-
-    const percentage = Math.round((current / total) * 100);
-    progressEl.innerHTML = `
-      <div style="margin-bottom: 10px;">${message}</div>
-      <div style="background: #34495e; height: 4px; border-radius: 2px; overflow: hidden;">
-        <div style="background: #3498db; height: 100%; width: ${percentage}%; transition: width 0.3s ease;"></div>
-      </div>
-      <div style="margin-top: 10px; font-size: 14px;">${current}/${total} (${percentage}%)</div>
-    `;
-
-    if (current >= total) {
-      setTimeout(() => {
-        if (progressEl.parentNode) {
-          progressEl.parentNode.removeChild(progressEl);
-        }
-      }, 1000);
-    }
-  }
-
-  hideProgressIndicator() {
-    const progressEl = document.getElementById('ui-progress-indicator');
-    if (progressEl && progressEl.parentNode) {
-      progressEl.parentNode.removeChild(progressEl);
-    }
-  }
-
-  // Theme management
-  setTheme(theme) {
-    document.body.setAttribute('data-theme', theme);
-    localStorage.setItem('dorganize-theme', theme);
-  }
-
-  getCurrentTheme() {
-    return localStorage.getItem('dorganize-theme') || 'light';
-  }
-
-  toggleTheme() {
-    const currentTheme = this.getCurrentTheme();
-    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-    this.setTheme(newTheme);
-    return newTheme;
-  }
-
-  // Accessibility helpers
-  announceToScreenReader(message) {
-    const announcement = document.createElement('div');
-    announcement.setAttribute('aria-live', 'polite');
-    announcement.setAttribute('aria-atomic', 'true');
-    announcement.className = 'sr-only';
-    announcement.textContent = message;
-
-    document.body.appendChild(announcement);
-
-    setTimeout(() => {
-      document.body.removeChild(announcement);
-    }, 1000);
-  }
-
-  setFocusToElement(elementId) {
-    const element = document.getElementById(elementId);
-    if (element) {
-      element.focus();
-    }
-  }
-
-  // Animation helpers
-  fadeInElement(element, duration = 300) {
-    element.style.opacity = '0';
-    element.style.transition = `opacity ${duration}ms ease`;
-
-    setTimeout(() => {
-      element.style.opacity = '1';
-    }, 10);
-  }
-
-  fadeOutElement(element, duration = 300) {
-    element.style.transition = `opacity ${duration}ms ease`;
-    element.style.opacity = '0';
-
-    return new Promise(resolve => {
-      setTimeout(() => {
-        resolve();
-      }, duration);
-    });
-  }
-
-  slideInElement(element, direction = 'right', duration = 300) {
-    const transforms = {
-      'right': 'translateX(100%)',
-      'left': 'translateX(-100%)',
-      'up': 'translateY(-100%)',
-      'down': 'translateY(100%)'
+    // Configuration for element access
+    this.config = {
+      timeoutMs: 5000,
+      maxRetries: 3,
+      retryDelayMs: 100,
+      enableCaching: true,
+      enableObservers: true,
+      strictMode: false, // Set to true for development/testing
+      fallbackElements: new Map() // Fallback elements for critical UI
     };
 
-    element.style.transform = transforms[direction];
-    element.style.transition = `transform ${duration}ms ease`;
+    // Statistics for monitoring
+    this.stats = {
+      totalAccesses: 0,
+      nullAccesses: 0,
+      cachedAccesses: 0,
+      fallbacksUsed: 0,
+      errorsHandled: 0
+    };
 
-    setTimeout(() => {
-      element.style.transform = 'translateX(0)';
-    }, 10);
+    // Bind methods to preserve context
+    this.handleDOMContentLoaded = this.handleDOMContentLoaded.bind(this);
+    this.handleWindowLoad = this.handleWindowLoad.bind(this);
+    this.handleWindowUnload = this.handleWindowUnload.bind(this);
+
+    this.initializeEventListeners();
+  }
+
+  /**
+   * Initialize event listeners for DOM lifecycle
+   */
+  initializeEventListeners() {
+    try {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', this.handleDOMContentLoaded);
+      } else if (document.readyState === 'interactive') {
+        // DOM is ready but resources may still be loading
+        setTimeout(() => this.initialize(), 0);
+      } else {
+        // Document is fully loaded
+        this.initialize();
+      }
+
+      window.addEventListener('load', this.handleWindowLoad);
+      window.addEventListener('beforeunload', this.handleWindowUnload);
+
+    } catch (error) {
+      this.errorHandler.error(error, 'UIManager.initializeEventListeners');
+    }
+  }
+
+  /**
+   * Handle DOMContentLoaded event
+   */
+  handleDOMContentLoaded() {
+    console.log('UIManager: DOM content loaded, initializing...');
+    this.initialize();
+  }
+
+  /**
+   * Handle window load event
+   */
+  handleWindowLoad() {
+    console.log('UIManager: Window fully loaded');
+    this.validateCriticalElements();
+  }
+
+  /**
+   * Handle window unload event
+   */
+  handleWindowUnload() {
+    this.cleanup();
+  }
+
+  /**
+   * Initialize UIManager with comprehensive validation
+   */
+  async initialize() {
+    if (this.isInitialized) {
+      return true;
+    }
+
+    try {
+      console.log('UIManager: Starting initialization...');
+
+      // Validate DOM is ready
+      if (!this.isDOMReady()) {
+        console.warn('UIManager: DOM not ready, retrying...');
+        setTimeout(() => this.initialize(), this.config.retryDelayMs);
+        return false;
+      }
+
+      // Cache critical elements
+      await this.cacheElements();
+
+      // Setup MutationObservers for dynamic content
+      if (this.config.enableObservers) {
+        this.setupMutationObservers();
+      }
+
+      // Create fallback elements if needed
+      this.createFallbackElements();
+
+      this.isInitialized = true;
+      console.log('UIManager: Initialization completed successfully');
+      return true;
+
+    } catch (error) {
+      this.errorHandler.error(error, 'UIManager.initialize');
+      this.stats.errorsHandled++;
+      return false;
+    }
+  }
+
+  /**
+   * Check if DOM is ready for manipulation
+   */
+  isDOMReady() {
+    try {
+      return document &&
+        document.body &&
+        document.readyState !== 'loading' &&
+        typeof document.createElement === 'function' &&
+        typeof document.querySelector === 'function';
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Cache critical DOM elements with comprehensive validation
+   */
+  async cacheElements() {
+    const criticalSelectors = [
+      { key: 'body', selector: 'body', required: true },
+      { key: 'dockContainer', selector: '.dock-container', required: false },
+      { key: 'dockItems', selector: '#dock-items', required: false },
+      { key: 'windowsList', selector: '#windows-list', required: false },
+      { key: 'settingsPanel', selector: '#settings-panel', required: false },
+      { key: 'configModal', selector: '#config-modal', required: false },
+      { key: 'refreshButton', selector: '.refresh-button', required: false },
+      { key: 'toggleButton', selector: '.toggle-button', required: false },
+      { key: 'statusIndicator', selector: '.status-indicator', required: false },
+      { key: 'errorDisplay', selector: '.error-display', required: false }
+    ];
+
+    for (const elementConfig of criticalSelectors) {
+      try {
+        const element = await this.findElementSafely(elementConfig.selector, {
+          timeout: elementConfig.required ? this.config.timeoutMs : 1000,
+          retries: elementConfig.required ? this.config.maxRetries : 1
+        });
+
+        if (element) {
+          this.elements.set(elementConfig.key, element);
+          console.log(`UIManager: Cached element '${elementConfig.key}'`);
+        } else if (elementConfig.required) {
+          throw new Error(`Required element '${elementConfig.key}' not found: ${elementConfig.selector}`);
+        } else {
+          console.warn(`UIManager: Optional element '${elementConfig.key}' not found: ${elementConfig.selector}`);
+        }
+
+      } catch (error) {
+        this.errorHandler.error(error, `UIManager.cacheElements [${elementConfig.key}]`);
+
+        if (elementConfig.required) {
+          throw error;
+        }
+      }
+    }
+  }
+
+  /**
+   * Find element safely with retry logic and timeout
+   */
+  async findElementSafely(selector, options = {}) {
+    const config = {
+      timeout: 2000,
+      retries: 2,
+      retryDelay: 100,
+      ...options
+    };
+
+    for (let attempt = 0; attempt <= config.retries; attempt++) {
+      try {
+        // Validate selector
+        if (!this.isValidSelector(selector)) {
+          throw new Error(`Invalid selector: ${selector}`);
+        }
+
+        // Try to find element with timeout
+        const element = await this.queryElementWithTimeout(selector, config.timeout);
+
+        if (element) {
+          return element;
+        }
+
+        if (attempt < config.retries) {
+          console.log(`UIManager: Element '${selector}' not found, retrying (${attempt + 1}/${config.retries})...`);
+          await new Promise(resolve => setTimeout(resolve, config.retryDelay));
+        }
+
+      } catch (error) {
+        console.warn(`UIManager: Error finding element '${selector}' (attempt ${attempt + 1}):`, error.message);
+
+        if (attempt === config.retries) {
+          throw error;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Query element with timeout protection
+   */
+  async queryElementWithTimeout(selector, timeoutMs) {
+    return new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        resolve(null); // Return null instead of rejecting for timeout
+      }, timeoutMs);
+
+      try {
+        // Immediate check
+        const element = this.queryElementSafely(selector);
+        if (element) {
+          clearTimeout(timeoutId);
+          resolve(element);
+          return;
+        }
+
+        // If not found immediately, use MutationObserver to wait for it
+        const observer = new MutationObserver((mutations) => {
+          const element = this.queryElementSafely(selector);
+          if (element) {
+            clearTimeout(timeoutId);
+            observer.disconnect();
+            resolve(element);
+          }
+        });
+
+        observer.observe(document.body, {
+          childList: true,
+          subtree: true,
+          attributes: false
+        });
+
+      } catch (error) {
+        clearTimeout(timeoutId);
+        reject(error);
+      }
+    });
+  }
+
+  /**
+   * Query element with comprehensive null checking
+   */
+  queryElementSafely(selector) {
+    try {
+      if (!selector || typeof selector !== 'string') {
+        throw new Error('Invalid selector provided');
+      }
+
+      if (!document || typeof document.querySelector !== 'function') {
+        throw new Error('Document or querySelector not available');
+      }
+
+      const element = document.querySelector(selector);
+
+      // Additional validation for the found element
+      if (element && this.isValidElement(element)) {
+        return element;
+      }
+
+      return null;
+
+    } catch (error) {
+      this.errorHandler.warn(`Query failed for selector '${selector}': ${error.message}`, 'UIManager');
+      return null;
+    }
+  }
+
+  /**
+   * Validate if selector string is valid
+   */
+  isValidSelector(selector) {
+    try {
+      if (!selector || typeof selector !== 'string' || selector.trim().length === 0) {
+        return false;
+      }
+
+      // Test selector by trying to parse it
+      document.createDocumentFragment().querySelector(selector);
+      return true;
+
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Validate if element is valid and accessible
+   */
+  isValidElement(element) {
+    try {
+      return element &&
+        element.nodeType === Node.ELEMENT_NODE &&
+        typeof element.getAttribute === 'function' &&
+        typeof element.classList === 'object' &&
+        element.ownerDocument === document;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Get element with comprehensive fallback chain
+   */
+  getElement(keyOrSelector, options = {}) {
+    this.stats.totalAccesses++;
+
+    try {
+      const config = {
+        useCache: this.config.enableCaching,
+        createFallback: false,
+        required: false,
+        fallbackTag: 'div',
+        fallbackClass: 'ui-fallback',
+        ...options
+      };
+
+      let element = null;
+
+      // Try cached element first
+      if (config.useCache && this.elements.has(keyOrSelector)) {
+        element = this.elements.get(keyOrSelector);
+        if (this.isValidElement(element) && document.contains(element)) {
+          this.stats.cachedAccesses++;
+          return element;
+        } else {
+          // Remove invalid cached element
+          this.elements.delete(keyOrSelector);
+          console.warn(`UIManager: Removed invalid cached element: ${keyOrSelector}`);
+        }
+      }
+
+      // Try to find element by selector
+      if (!element) {
+        const selector = this.elements.has(keyOrSelector) ? keyOrSelector : keyOrSelector;
+        element = this.queryElementSafely(selector);
+      }
+
+      // Try fallback element
+      if (!element && this.config.fallbackElements.has(keyOrSelector)) {
+        element = this.config.fallbackElements.get(keyOrSelector);
+        if (this.isValidElement(element)) {
+          this.stats.fallbacksUsed++;
+          console.log(`UIManager: Using fallback element for: ${keyOrSelector}`);
+        } else {
+          element = null;
+        }
+      }
+
+      // Create fallback if requested and element is critical
+      if (!element && config.createFallback) {
+        element = this.createFallbackElement(keyOrSelector, config);
+        if (element) {
+          this.stats.fallbacksUsed++;
+          console.log(`UIManager: Created fallback element for: ${keyOrSelector}`);
+        }
+      }
+
+      // Handle null result
+      if (!element) {
+        this.stats.nullAccesses++;
+
+        if (config.required) {
+          throw new Error(`Required element not found: ${keyOrSelector}`);
+        }
+
+        if (this.config.strictMode) {
+          console.error(`UIManager: Element not found in strict mode: ${keyOrSelector}`);
+        }
+
+        return null;
+      }
+
+      // Cache valid element if caching is enabled
+      if (config.useCache && !this.elements.has(keyOrSelector)) {
+        this.elements.set(keyOrSelector, element);
+      }
+
+      return element;
+
+    } catch (error) {
+      this.stats.errorsHandled++;
+      this.errorHandler.error(error, `UIManager.getElement [${keyOrSelector}]`);
+
+      if (options.required) {
+        throw error;
+      }
+
+      return null;
+    }
+  }
+
+  /**
+   * Set content safely with null checking
+   */
+  setContent(keyOrSelector, content, options = {}) {
+    try {
+      const config = {
+        method: 'innerHTML', // 'innerHTML', 'textContent', 'innerText'
+        clearFirst: false,
+        required: false,
+        ...options
+      };
+
+      const element = this.getElement(keyOrSelector, { required: config.required });
+
+      if (!element) {
+        if (config.required) {
+          throw new Error(`Cannot set content: element not found: ${keyOrSelector}`);
+        }
+        return false;
+      }
+
+      // Validate content
+      if (content === null || content === undefined) {
+        content = '';
+      }
+
+      // Clear first if requested
+      if (config.clearFirst) {
+        this.clearElement(element);
+      }
+
+      // Set content based on method
+      switch (config.method) {
+        case 'innerHTML':
+          if (typeof content === 'string') {
+            element.innerHTML = content;
+          } else {
+            element.innerHTML = String(content);
+          }
+          break;
+
+        case 'textContent':
+          element.textContent = String(content);
+          break;
+
+        case 'innerText':
+          element.innerText = String(content);
+          break;
+
+        default:
+          throw new Error(`Invalid content method: ${config.method}`);
+      }
+
+      return true;
+
+    } catch (error) {
+      this.stats.errorsHandled++;
+      this.errorHandler.error(error, `UIManager.setContent [${keyOrSelector}]`);
+
+      if (options.required) {
+        throw error;
+      }
+
+      return false;
+    }
+  }
+
+  /**
+   * Add CSS class safely with null checking
+   */
+  addClass(keyOrSelector, className, options = {}) {
+    try {
+      const element = this.getElement(keyOrSelector, options);
+
+      if (!element) {
+        if (options.required) {
+          throw new Error(`Cannot add class: element not found: ${keyOrSelector}`);
+        }
+        return false;
+      }
+
+      if (!className || typeof className !== 'string') {
+        throw new Error('Invalid class name provided');
+      }
+
+      // Validate classList exists
+      if (!element.classList || typeof element.classList.add !== 'function') {
+        // Fallback for very old browsers
+        const classes = element.className ? element.className.split(' ') : [];
+        if (!classes.includes(className)) {
+          classes.push(className);
+          element.className = classes.join(' ');
+        }
+      } else {
+        element.classList.add(className);
+      }
+
+      return true;
+
+    } catch (error) {
+      this.stats.errorsHandled++;
+      this.errorHandler.error(error, `UIManager.addClass [${keyOrSelector}]`);
+
+      if (options.required) {
+        throw error;
+      }
+
+      return false;
+    }
+  }
+
+  /**
+   * Remove CSS class safely with null checking
+   */
+  removeClass(keyOrSelector, className, options = {}) {
+    try {
+      const element = this.getElement(keyOrSelector, options);
+
+      if (!element) {
+        if (options.required) {
+          throw new Error(`Cannot remove class: element not found: ${keyOrSelector}`);
+        }
+        return false;
+      }
+
+      if (!className || typeof className !== 'string') {
+        throw new Error('Invalid class name provided');
+      }
+
+      // Validate classList exists
+      if (!element.classList || typeof element.classList.remove !== 'function') {
+        // Fallback for very old browsers
+        const classes = element.className ? element.className.split(' ') : [];
+        const filteredClasses = classes.filter(cls => cls !== className);
+        element.className = filteredClasses.join(' ');
+      } else {
+        element.classList.remove(className);
+      }
+
+      return true;
+
+    } catch (error) {
+      this.stats.errorsHandled++;
+      this.errorHandler.error(error, `UIManager.removeClass [${keyOrSelector}]`);
+
+      if (options.required) {
+        throw error;
+      }
+
+      return false;
+    }
+  }
+
+  /**
+   * Toggle CSS class safely with null checking
+   */
+  toggleClass(keyOrSelector, className, force = null, options = {}) {
+    try {
+      const element = this.getElement(keyOrSelector, options);
+
+      if (!element) {
+        if (options.required) {
+          throw new Error(`Cannot toggle class: element not found: ${keyOrSelector}`);
+        }
+        return false;
+      }
+
+      if (!className || typeof className !== 'string') {
+        throw new Error('Invalid class name provided');
+      }
+
+      // Validate classList exists
+      if (!element.classList || typeof element.classList.toggle !== 'function') {
+        // Fallback for very old browsers
+        const hasClass = this.hasClass(keyOrSelector, className);
+        if (force === null) {
+          if (hasClass) {
+            this.removeClass(keyOrSelector, className);
+          } else {
+            this.addClass(keyOrSelector, className);
+          }
+        } else if (force && !hasClass) {
+          this.addClass(keyOrSelector, className);
+        } else if (!force && hasClass) {
+          this.removeClass(keyOrSelector, className);
+        }
+      } else {
+        if (force === null) {
+          element.classList.toggle(className);
+        } else {
+          element.classList.toggle(className, force);
+        }
+      }
+
+      return true;
+
+    } catch (error) {
+      this.stats.errorsHandled++;
+      this.errorHandler.error(error, `UIManager.toggleClass [${keyOrSelector}]`);
+
+      if (options.required) {
+        throw error;
+      }
+
+      return false;
+    }
+  }
+
+  /**
+   * Check if element has CSS class safely
+   */
+  hasClass(keyOrSelector, className, options = {}) {
+    try {
+      const element = this.getElement(keyOrSelector, options);
+
+      if (!element) {
+        return false;
+      }
+
+      if (!className || typeof className !== 'string') {
+        return false;
+      }
+
+      // Validate classList exists
+      if (!element.classList || typeof element.classList.contains !== 'function') {
+        // Fallback for very old browsers
+        const classes = element.className ? element.className.split(' ') : [];
+        return classes.includes(className);
+      } else {
+        return element.classList.contains(className);
+      }
+
+    } catch (error) {
+      this.stats.errorsHandled++;
+      this.errorHandler.error(error, `UIManager.hasClass [${keyOrSelector}]`);
+      return false;
+    }
+  }
+
+  /**
+   * Set style property safely with null checking
+   */
+  setStyle(keyOrSelector, property, value, options = {}) {
+    try {
+      const element = this.getElement(keyOrSelector, options);
+
+      if (!element) {
+        if (options.required) {
+          throw new Error(`Cannot set style: element not found: ${keyOrSelector}`);
+        }
+        return false;
+      }
+
+      if (!property || typeof property !== 'string') {
+        throw new Error('Invalid style property provided');
+      }
+
+      if (!element.style) {
+        throw new Error('Element does not support style property');
+      }
+
+      // Validate and set style
+      if (typeof value === 'string' || typeof value === 'number') {
+        element.style[property] = value;
+      } else {
+        throw new Error(`Invalid style value: ${value}`);
+      }
+
+      return true;
+
+    } catch (error) {
+      this.stats.errorsHandled++;
+      this.errorHandler.error(error, `UIManager.setStyle [${keyOrSelector}]`);
+
+      if (options.required) {
+        throw error;
+      }
+
+      return false;
+    }
+  }
+
+  /**
+   * Get style property safely with null checking
+   */
+  getStyle(keyOrSelector, property, options = {}) {
+    try {
+      const element = this.getElement(keyOrSelector, options);
+
+      if (!element) {
+        return null;
+      }
+
+      if (!property || typeof property !== 'string') {
+        return null;
+      }
+
+      if (!element.style) {
+        return null;
+      }
+
+      // Get computed style for more accurate values
+      if (window.getComputedStyle) {
+        const computed = window.getComputedStyle(element);
+        return computed.getPropertyValue(property);
+      } else {
+        // Fallback to direct style access
+        return element.style[property] || null;
+      }
+
+    } catch (error) {
+      this.stats.errorsHandled++;
+      this.errorHandler.error(error, `UIManager.getStyle [${keyOrSelector}]`);
+      return null;
+    }
+  }
+
+  /**
+   * Add event listener safely with null checking
+   */
+  addEventListener(keyOrSelector, eventType, handler, options = {}) {
+    try {
+      const config = {
+        once: false,
+        passive: false,
+        capture: false,
+        ...options
+      };
+
+      const element = this.getElement(keyOrSelector, { required: config.required });
+
+      if (!element) {
+        if (config.required) {
+          throw new Error(`Cannot add event listener: element not found: ${keyOrSelector}`);
+        }
+        return false;
+      }
+
+      if (!eventType || typeof eventType !== 'string') {
+        throw new Error('Invalid event type provided');
+      }
+
+      if (!handler || typeof handler !== 'function') {
+        throw new Error('Invalid event handler provided');
+      }
+
+      // Wrap handler for error protection
+      const safeHandler = (event) => {
+        try {
+          handler(event);
+        } catch (error) {
+          this.errorHandler.error(error, `UIManager.eventHandler [${eventType}]`);
+        }
+      };
+
+      // Add event listener with options
+      element.addEventListener(eventType, safeHandler, {
+        once: config.once,
+        passive: config.passive,
+        capture: config.capture
+      });
+
+      return true;
+
+    } catch (error) {
+      this.stats.errorsHandled++;
+      this.errorHandler.error(error, `UIManager.addEventListener [${keyOrSelector}]`);
+
+      if (options.required) {
+        throw error;
+      }
+
+      return false;
+    }
+  }
+
+  /**
+   * Show element safely
+   */
+  show(keyOrSelector, options = {}) {
+    const config = {
+      display: 'block',
+      transition: false,
+      ...options
+    };
+
+    return this.setStyle(keyOrSelector, 'display', config.display, options);
+  }
+
+  /**
+   * Hide element safely
+   */
+  hide(keyOrSelector, options = {}) {
+    return this.setStyle(keyOrSelector, 'display', 'none', options);
+  }
+
+  /**
+   * Clear element content safely
+   */
+  clearElement(element) {
+    try {
+      if (!this.isValidElement(element)) {
+        return false;
+      }
+
+      // Remove all child nodes safely
+      while (element.firstChild) {
+        element.removeChild(element.firstChild);
+      }
+
+      return true;
+
+    } catch (error) {
+      this.errorHandler.error(error, 'UIManager.clearElement');
+      return false;
+    }
+  }
+
+  /**
+   * Create fallback element for critical UI components
+   */
+  createFallbackElement(key, config) {
+    try {
+      const element = document.createElement(config.fallbackTag || 'div');
+
+      if (config.fallbackClass) {
+        element.className = config.fallbackClass;
+      }
+
+      element.setAttribute('data-fallback-for', key);
+      element.textContent = `Fallback for ${key}`;
+
+      // Try to append to body or suitable parent
+      const parent = document.body || document.documentElement;
+      if (parent) {
+        parent.appendChild(element);
+        this.config.fallbackElements.set(key, element);
+        return element;
+      }
+
+      return null;
+
+    } catch (error) {
+      this.errorHandler.error(error, `UIManager.createFallbackElement [${key}]`);
+      return null;
+    }
+  }
+
+  /**
+   * Create fallback elements for critical components
+   */
+  createFallbackElements() {
+    const criticalElements = [
+      { key: 'errorDisplay', tag: 'div', class: 'error-display fallback' },
+      { key: 'statusIndicator', tag: 'div', class: 'status-indicator fallback' }
+    ];
+
+    for (const elementConfig of criticalElements) {
+      try {
+        if (!this.elements.has(elementConfig.key)) {
+          const fallback = this.createFallbackElement(elementConfig.key, {
+            fallbackTag: elementConfig.tag,
+            fallbackClass: elementConfig.class
+          });
+
+          if (fallback) {
+            console.log(`UIManager: Created fallback for ${elementConfig.key}`);
+          }
+        }
+      } catch (error) {
+        this.errorHandler.error(error, `UIManager.createFallbackElements [${elementConfig.key}]`);
+      }
+    }
+  }
+
+  /**
+   * Setup MutationObservers for dynamic content
+   */
+  setupMutationObservers() {
+    try {
+      // Observer for dynamically added elements
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          mutation.addedNodes.forEach((node) => {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              this.handleDynamicElement(node);
+            }
+          });
+        });
+      });
+
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true
+      });
+
+      this.observers.set('dynamic-content', observer);
+      console.log('UIManager: MutationObserver setup complete');
+
+    } catch (error) {
+      this.errorHandler.error(error, 'UIManager.setupMutationObservers');
+    }
+  }
+
+  /**
+   * Handle dynamically added elements
+   */
+  handleDynamicElement(element) {
+    try {
+      // Check if this element matches any of our cached selectors
+      for (const [key, cachedElement] of this.elements.entries()) {
+        if (!this.isValidElement(cachedElement) || !document.contains(cachedElement)) {
+          // Try to find a replacement
+          const selector = this.getSelectorForKey(key);
+          if (selector && element.matches && element.matches(selector)) {
+            this.elements.set(key, element);
+            console.log(`UIManager: Updated cached element for ${key}`);
+          }
+        }
+      }
+    } catch (error) {
+      this.errorHandler.warn(`Error handling dynamic element: ${error.message}`, 'UIManager');
+    }
+  }
+
+  /**
+   * Get selector string for cached element key
+   */
+  getSelectorForKey(key) {
+    const selectorMap = {
+      'dockContainer': '.dock-container',
+      'dockItems': '#dock-items',
+      'windowsList': '#windows-list',
+      'settingsPanel': '#settings-panel',
+      'configModal': '#config-modal',
+      'refreshButton': '.refresh-button',
+      'toggleButton': '.toggle-button',
+      'statusIndicator': '.status-indicator',
+      'errorDisplay': '.error-display'
+    };
+
+    return selectorMap[key] || null;
+  }
+
+  /**
+   * Validate critical elements are accessible
+   */
+  validateCriticalElements() {
+    const criticalElements = ['body'];
+
+    for (const key of criticalElements) {
+      const element = this.getElement(key);
+      if (!element) {
+        console.error(`UIManager: Critical element missing: ${key}`);
+        this.stats.errorsHandled++;
+      }
+    }
+  }
+
+  /**
+   * Get UIManager statistics
+   */
+  getStatistics() {
+    return {
+      ...this.stats,
+      cachedElements: this.elements.size,
+      fallbackElements: this.config.fallbackElements.size,
+      activeObservers: this.observers.size,
+      isInitialized: this.isInitialized,
+      successRate: this.stats.totalAccesses > 0 ?
+        Math.round(((this.stats.totalAccesses - this.stats.nullAccesses) / this.stats.totalAccesses) * 100) : 0
+    };
+  }
+
+  /**
+   * Cleanup resources
+   */
+  cleanup() {
+    try {
+      console.log('UIManager: Starting cleanup...');
+
+      // Disconnect all observers
+      for (const [key, observer] of this.observers.entries()) {
+        try {
+          observer.disconnect();
+        } catch (error) {
+          console.warn(`UIManager: Error disconnecting observer ${key}:`, error.message);
+        }
+      }
+      this.observers.clear();
+
+      // Clear element cache
+      this.elements.clear();
+      this.config.fallbackElements.clear();
+
+      // Remove event listeners
+      document.removeEventListener('DOMContentLoaded', this.handleDOMContentLoaded);
+      window.removeEventListener('load', this.handleWindowLoad);
+      window.removeEventListener('beforeunload', this.handleWindowUnload);
+
+      this.isInitialized = false;
+      console.log('UIManager: Cleanup completed');
+
+    } catch (error) {
+      this.errorHandler.error(error, 'UIManager.cleanup');
+    }
   }
 }
 
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = UIManager;
-}
+module.exports = UIManager;

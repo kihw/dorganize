@@ -2,6 +2,47 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.2] - 2025-07-12
+
+### 🔧 Code Quality & Bug Fixes
+- **Critical Stability**: Fixed PowerShellExecutor causing app crashes with robust error handling
+  - Added timeout handling for all async operations
+  - Implemented PowerShell availability check with graceful fallbacks
+  - Created unit tests for error scenarios and system dependencies
+
+- **Improved JSON Handling**: Enhanced WindowParser to prevent crashes from malformed data
+  - Added safe JSON parsing with validation and error recovery
+  - Implemented comprehensive JSON parsing error tests
+
+- **Race Condition Resolution**: Fixed WindowDetector race conditions with concurrent operations
+  - Added mutex/lock mechanism for window detection
+  - Created concurrency tests to verify thread safety
+
+- **DOM Performance**: Major rendering performance improvements in WindowRenderer
+  - Implemented incremental DOM updates instead of full regeneration
+  - Added DOM element caching to reduce expensive lookups
+  - Created comprehensive DOM performance and visual tests
+
+- **Structured Logging**: Implemented robust Logger system
+  - Added configurable log levels (debug, info, warn, error)
+  - Created file and console output options with rotation
+  - Added error/stack trace handling and context support
+  - Created module-specific loggers for consistent logging
+
+- **Enhanced Error Handling**: Improved error management with localization
+  - Refactored ErrorHandler to use LocalizedErrorMessages utility
+  - Added consistent error message translations in all supported languages
+  - Improved user-facing error notifications with simplified messages
+  - Created comprehensive error handler tests
+
+### 🧰 Technical Improvements
+- Created centralized Constants.js to eliminate magic numbers
+- Improved null checking across UI modules with graceful fallbacks
+- Updated ShortcutConfigManager to use Electron's userData path
+- Added comprehensive test coverage for all critical components
+
+---
+
 ## [0.4.1] - 2025-06-15
 
 ### 🚀 New Features

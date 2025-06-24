@@ -45,7 +45,7 @@ class ShortcutConfigManager {
 
     // Initialize config (will call async methods)
     this._initPromise = this.initialize();
-
+    
     logger.info(`ShortcutConfigManager: Using config directory: ${this.configDir}`);
   }
 
@@ -56,7 +56,7 @@ class ShortcutConfigManager {
   async waitForInitialization() {
     return await this._initPromise;
   }
-
+  
   /**
    * Initialize the configuration system asynchronously
    */
@@ -134,21 +134,21 @@ class ShortcutConfigManager {
     try {
       let legacyExists = false;
       let newExists = false;
-
+      
       try {
         await fs.access(this.legacyConfigFile);
         legacyExists = true;
       } catch (err) {
         // Legacy file doesn't exist, which is fine
       }
-
+      
       try {
         await fs.access(this.configFile);
         newExists = true;
       } catch (err) {
         // New config doesn't exist, which is fine if we're migrating
       }
-
+      
       // Check if legacy config exists and new config doesn't
       if (legacyExists && !newExists) {
         logger.info('ShortcutConfigManager: Migrating configuration from legacy location...');
@@ -242,7 +242,7 @@ class ShortcutConfigManager {
       } catch (err) {
         // File doesn't exist, we'll create it
       }
-
+      
       if (fileExists) {
         const data = await fs.readFile(this.configFile, 'utf8');
         const loadedConfig = JSON.parse(data);
@@ -323,7 +323,7 @@ class ShortcutConfigManager {
     try {
       try {
         await fs.access(this.configFile);
-
+        
         const corruptedBackupFile = path.join(this.backupDir, `corrupted-${Date.now()}.json`);
         await fs.copyFile(this.configFile, corruptedBackupFile);
         logger.info(`ShortcutConfigManager: Backed up corrupted config to ${corruptedBackupFile}`);
@@ -383,7 +383,7 @@ class ShortcutConfigManager {
     try {
       try {
         await fs.access(this.configFile);
-
+        
         const backupFile = path.join(this.backupDir, `auto-backup-${Date.now()}.json`);
         await fs.copyFile(this.configFile, backupFile);
 
@@ -404,7 +404,7 @@ class ShortcutConfigManager {
   async cleanupOldBackups() {
     try {
       const files = await fs.readdir(this.backupDir);
-
+      
       const backupFiles = await Promise.all(
         files
           .filter(file => file.startsWith('auto-backup-') && file.endsWith('.json'))
@@ -418,7 +418,7 @@ class ShortcutConfigManager {
             };
           })
       );
-
+      
       // Sort by modification time (newest first)
       backupFiles.sort((a, b) => b.mtime - a.mtime);
 
@@ -451,7 +451,7 @@ class ShortcutConfigManager {
       }
 
       const files = await fs.readdir(this.backupDir);
-
+      
       const backups = await Promise.all(
         files
           .filter(file => file.endsWith('.json'))
@@ -467,7 +467,7 @@ class ShortcutConfigManager {
             };
           })
       );
-
+      
       // Sort by modification time (newest first)
       return backups.sort((a, b) => b.modified - a.modified);
 
@@ -506,15 +506,15 @@ class ShortcutConfigManager {
 
       // Validate backup structure
       this.validateConfigStructure(backupConfig);
-
+      
       // Copy backup to config file using atomic write
       const tempFile = this.configFile + '.tmp';
       await fs.writeFile(tempFile, backupData, 'utf8');
       await fs.rename(tempFile, this.configFile);
-
+      
       // Reload config
       await this.loadConfig();
-
+      
       logger.info(`ShortcutConfigManager: Successfully restored config from backup: ${path.basename(backupPath)}`);
       return true;
     } catch (error) {
@@ -540,7 +540,7 @@ class ShortcutConfigManager {
       // Set nested property using path notation
       const parts = path.split('.');
       let current = this.config;
-
+      
       // Navigate to the property location
       for (let i = 0; i < parts.length - 1; i++) {
         if (!current[parts[i]]) {
@@ -548,10 +548,10 @@ class ShortcutConfigManager {
         }
         current = current[parts[i]];
       }
-
+      
       // Update the property
       current[parts[parts.length - 1]] = value;
-
+      
       // Save the config
       const success = await this.saveConfig();
       return success;
@@ -560,106 +560,74 @@ class ShortcutConfigManager {
       return false;
     }
   }
-
+  
   /**
    * Synchronous methods for backward compatibility
    * These should be used only when absolutely necessary
    */
-
+  
   getConfigSync() {
     return this.config;
   }
-
-  /**
-   * Save configuration to file synchronously
-   * @deprecated Use saveConfig() async method instead
-   * @returns {boolean} success
-   */
+  
   saveConfigSync() {
-    logger.warn('ShortcutConfigManager: saveConfigSync is deprecated, use saveConfig() instead');
-
-    // Create a promise and immediately wait for it (still blocking)
     try {
-      return new Promise(resolve => {
-        // Use the async version internally
-        this.saveConfig()
-          .then(success => resolve(success))
-          .catch(error => {
-            logger.error('ShortcutConfigManager: Error in saveConfigSync', { error: error.message });
-            resolve(false);
-          });
-      });
+      this.config.lastUpdated = new Date().toISOString();
+      
+      // Create backup directory if it doesn't exist
+      if (!fsSync.existsSync(this.backupDir)) {
+        fsSync.mkdirSync(this.backupDir, { recursive: true });
+      }
+
+      // Create backup if possible
+      if (fsSync.existsSync(this.configFile)) {
+        const backupFile = path.join(this.backupDir, `auto-backup-${Date.now()}.json`);
+        fsSync.copyFileSync(this.configFile, backupFile);
+      }
+      
+      const configData = JSON.stringify(this.config, null, 2);
+
+      // Atomic write using temporary file
+      const tempFile = this.configFile + '.tmp';
+      fsSync.writeFileSync(tempFile, configData, 'utf8');
+      fsSync.renameSync(tempFile, this.configFile);
+
+      logger.info('ShortcutConfigManager: Config saved successfully (sync)');
+      return true;
     } catch (error) {
-      logger.error('ShortcutConfigManager: Critical error in saveConfigSync', { error: error.message });
+      logger.error('ShortcutConfigManager: Error saving config (sync)', { error: error.message });
+      
+      try {
+        const tempFile = this.configFile + '.tmp';
+        if (fsSync.existsSync(tempFile)) {
+          fsSync.unlinkSync(tempFile);
+        }
+      } catch (cleanupError) {
+        // Ignore cleanup errors
+      }
+      
       return false;
     }
   }
-
-  /**
-   * Update configuration value synchronously
-   * @deprecated Use updateConfig() async method instead
-   * @param {string} path - Dot notation path to config property
-   * @param {any} value - New value
-   */
+  
   updateConfigSync(path, value) {
-    logger.warn('ShortcutConfigManager: updateConfigSync is deprecated, use updateConfig() instead');
-
     try {
       // Set nested property using path notation
       const parts = path.split('.');
       let current = this.config;
-
+      
       for (let i = 0; i < parts.length - 1; i++) {
         if (!current[parts[i]]) {
           current[parts[i]] = {};
         }
         current = current[parts[i]];
       }
-
+      
       current[parts[parts.length - 1]] = value;
-
-      // Use the async version internally but wait synchronously
-      return new Promise(resolve => {
-        this.saveConfig()
-          .then(success => resolve(success))
-          .catch(error => {
-            logger.error('ShortcutConfigManager: Error in updateConfigSync', { error: error.message });
-            resolve(false);
-          });
-      });
+      
+      return this.saveConfigSync();
     } catch (error) {
       logger.error('ShortcutConfigManager: Error updating config (sync)', { path, error: error.message });
-      return false;
-    }
-  }
-
-  /**
-   * Safe async check if file exists
-   * @param {string} filePath - Path to check
-   * @returns {Promise<boolean>} true if file exists
-   */
-  async fileExists(filePath) {
-    try {
-      await fs.access(filePath, fsSync.constants.F_OK);
-      return true;
-    } catch (error) {
-      return false;
-    }
-  }
-
-  /**
-   * Safe async file deletion with error handling
-   * @param {string} filePath - Path to file to delete
-   * @returns {Promise<boolean>} true if successful
-   */
-  async safeDelete(filePath) {
-    try {
-      if (await this.fileExists(filePath)) {
-        await fs.unlink(filePath);
-      }
-      return true;
-    } catch (error) {
-      logger.warn('ShortcutConfigManager: Failed to delete file', { path: filePath, error: error.message });
       return false;
     }
   }

@@ -1,20 +1,13 @@
 {
   "name": "dorganize",
   "version": "0.4.2",
-  "description": "A modern cross-platform window organizer for Dofus with keyboard shortcuts, window management, and navigation dock - Bug fixes and Auto Key Configuration",
+  "description": "A Windows-only window organizer for Dofus with keyboard shortcuts, window management, and navigation dock - Major performance and code quality improvements",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
-    "build": "electron-builder",
+    "build": "electron-builder --win",
     "build-win": "electron-builder --win",
-    "build-linux": "electron-builder --linux",
-    "build-mac": "electron-builder --mac",
-    "build-all": "electron-builder -mwl",
-    "dist": "npm run build-all",
-    "pack": "electron-builder --dir",
-    "postinstall": "electron-builder install-app-deps",
-    "clean": "rimraf dist",
     "test": "jest",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix"
@@ -26,7 +19,7 @@
     "gaming",
     "multiboxing",
     "electron",
-    "cross-platform",
+    "windows",
     "auto-configuration",
     "initiative-sorting",
     "keyboard-shortcuts"
@@ -50,6 +43,7 @@
     "electron-builder": "^24.6.4",
     "eslint": "^8.57.0",
     "jest": "^29.7.0",
+    "jest-environment-jsdom": "^30.0.2",
     "rimraf": "^3.0.2"
   },
   "dependencies": {
@@ -114,66 +108,8 @@
       ],
       "icon": "assets/icons/dorganize.ico",
       "requestedExecutionLevel": "asInvoker",
-      "artifactName": "${productName}-${version}-${arch}-${os}.${ext}",
+      "artifactName": "${productName}-${version}-${arch}-windows.${ext}",
       "publisherName": "Dorganize Team"
-    },
-    "linux": {
-      "target": [
-        {
-          "target": "AppImage",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "deb",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "rpm",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "tar.gz",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "icon": "assets/icons/dorganize.png",
-      "category": "Game",
-      "artifactName": "${productName}-${version}-${arch}.${ext}",
-      "desktop": {
-        "Name": "Dorganize",
-        "Comment": "Window organizer for Dofus multi-accounting",
-        "Keywords": "dofus;window;organizer;gaming;",
-        "StartupWMClass": "dorganize"
-      }
-    },
-    "mac": {
-      "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        },
-        {
-          "target": "zip",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        }
-      ],
-      "icon": "assets/icons/dorganize.icns",
-      "category": "public.app-category.games",
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
@@ -196,28 +132,6 @@
     },
     "portable": {
       "artifactName": "${productName}-${version}-portable.${ext}"
-    },
-    "dmg": {
-      "title": "${productName} ${version}",
-      "artifactName": "${productName}-${version}.${ext}",
-      "background": "assets/dmg-background.png",
-      "contents": [
-        {
-          "x": 130,
-          "y": 220
-        },
-        {
-          "x": 410,
-          "y": 220,
-          "type": "link",
-          "path": "/Applications"
-        }
-      ]
-    },
-    "publish": {
-      "provider": "github",
-      "owner": "kihw",
-      "repo": "dorganize"
     }
   }
 }

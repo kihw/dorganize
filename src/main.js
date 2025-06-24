@@ -374,13 +374,166 @@ class Dorganize {
     }
     this.dockWindow = null;
   }
-
   startPeriodicCheck() {
-    setInterval(async () => {
+    const { POLLING_INTERVALS } = require('./utils/Constants');
+
+    // Initialize polling state
+    this.pollingState = {
+      interval: POLLING_INTERVALS.NORMAL,
+      lastActivity: Date.now(),
+      lastActiveWindow: null,
+      lastPerformanceMetrics: {
+        detectionTime: 0,
+        windowCount: 0,
+        timestamp: Date.now()
+      },
+      consecutiveHighLatency: 0
+    };
+
+    // Set up polling timer with initial interval
+    this.setupPollingInterval();
+
+    // Set up activity listeners for adaptive polling
+    this.setupActivityListeners();
+  }
+
+  /**
+   * Set up the polling interval timer
+   * @private
+   */
+  setupPollingInterval() {
+    const { POLLING_INTERVALS } = require('./utils/Constants');
+
+    // Clear existing interval if any
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+    }
+
+    // Create new interval with current polling rate
+    this.pollingInterval = setInterval(async () => {
       if (!this.isConfiguring) {
+        const start = Date.now();
         await this.refreshAndSort();
+
+        // Measure performance and adapt polling if needed
+        const detectionTime = Date.now() - start;
+        this.updatePollingPerformanceMetrics(detectionTime);
       }
-    }, 5000); // Check every 5 seconds
+    }, this.pollingState.interval);
+
+    console.log(`Polling interval set to ${this.pollingState.interval}ms`);
+  }
+
+  /**
+   * Set up listeners for user activity to adapt polling rate
+   * @private
+   */
+  setupActivityListeners() {
+    // Monitor window activation events
+    if (this.dockWindow) {
+      this.dockWindow.on('focus', () => this.recordUserActivity('dock-focus'));
+    }
+
+    // Listen for IPC events that indicate user interaction
+    const userActivityEvents = [
+      'activate-window', 'refresh-windows', 'set-shortcut',
+      'remove-shortcut', 'organize-windows'
+    ];
+
+    userActivityEvents.forEach(event => {
+      ipcMain.removeHandler(`${event}-activity`);
+      ipcMain.handle(`${event}-activity`, () => {
+        this.recordUserActivity(event);
+        return true;
+      });
+    });
+  }
+
+  /**
+   * Record user activity and adjust polling rate
+   * @param {string} source - Source of the activity
+   * @private
+   */
+  recordUserActivity(source) {
+    const { POLLING_INTERVALS } = require('./utils/Constants');
+
+    // Update activity timestamp
+    this.pollingState.lastActivity = Date.now();
+
+    // If we're not already at high frequency polling, switch to it
+    if (this.pollingState.interval !== POLLING_INTERVALS.HIGH) {
+      this.pollingState.interval = POLLING_INTERVALS.HIGH;
+      this.setupPollingInterval();
+      console.log(`Switched to high frequency polling due to user activity: ${source}`);
+    }
+
+    // Schedule a check to reduce polling rate after inactivity
+    this.scheduleInactivityCheck();
+  }
+
+  /**
+   * Schedule a check to reduce polling frequency after inactivity
+   * @private
+   */
+  scheduleInactivityCheck() {
+    const { POLLING_INTERVALS } = require('./utils/Constants');
+
+    // Clear any existing timeout
+    if (this.inactivityTimeout) {
+      clearTimeout(this.inactivityTimeout);
+    }
+
+    // Set timeout to check for inactivity
+    this.inactivityTimeout = setTimeout(() => {
+      const timeSinceActivity = Date.now() - this.pollingState.lastActivity;
+
+      // If inactive for ACTIVITY_TIMEOUT, reduce polling rate
+      if (timeSinceActivity >= POLLING_INTERVALS.ACTIVITY_TIMEOUT) {
+        // If inactive for IDLE_TIMEOUT, use IDLE rate
+        if (timeSinceActivity >= POLLING_INTERVALS.IDLE_TIMEOUT) {
+          this.pollingState.interval = POLLING_INTERVALS.IDLE;
+        }
+        // Otherwise use the LOW rate
+        else {
+          this.pollingState.interval = POLLING_INTERVALS.LOW;
+        }
+
+        this.setupPollingInterval();
+        console.log(`Reduced polling frequency due to inactivity (${Math.round(timeSinceActivity / 1000)}s)`);
+      }
+    }, POLLING_INTERVALS.ACTIVITY_TIMEOUT);
+  }
+
+  /**
+   * Update performance metrics and adapt polling rate based on system load
+   * @param {number} detectionTime - Time taken to detect windows in ms
+   * @private
+   */
+  updatePollingPerformanceMetrics(detectionTime) {
+    const { POLLING_INTERVALS } = require('./utils/Constants');
+
+    // Update metrics
+    this.pollingState.lastPerformanceMetrics = {
+      detectionTime,
+      windowCount: this.dofusWindows.length,
+      timestamp: Date.now()
+    };
+
+    // Detect high latency patterns
+    if (detectionTime > POLLING_INTERVALS.HIGH_LATENCY_THRESHOLD) {
+      this.pollingState.consecutiveHighLatency++;
+
+      // If consistently high latency, reduce polling frequency
+      if (this.pollingState.consecutiveHighLatency >= 3 &&
+        this.pollingState.interval < POLLING_INTERVALS.LOW) {
+        this.pollingState.interval = POLLING_INTERVALS.LOW;
+        this.setupPollingInterval();
+        console.log(`Reduced polling frequency due to high latency (${detectionTime}ms)`);
+      }
+    } else {
+      // Reset counter when latency is normal
+      this.pollingState.consecutiveHighLatency = 0;
+    }
   }
 
   registerGlobalShortcuts() {
@@ -575,10 +728,11 @@ class Dorganize {
       if (this.mainWindow && !this.mainWindow.isDestroyed()) {
         this.mainWindow.webContents.send('settings-updated', settings);
       }
-    });
-
-    ipcMain.handle('activate-window', async (event, windowId) => {
+    }); ipcMain.handle('activate-window', async (event, windowId) => {
       console.log(`IPC: activate-window called for: ${windowId}`);
+
+      // Record user activity for adaptive polling
+      this.recordUserActivity('activate-window');
 
       try {
         const window = this.dofusWindows.find(w => w.id === windowId);
@@ -613,11 +767,12 @@ class Dorganize {
         console.error(`IPC: Error activating window ${windowId}:`, error);
         return false;
       }
-    });
-
-    ipcMain.handle('refresh-windows', async () => {
+    }); ipcMain.handle('refresh-windows', async () => {
       console.log('IPC: refresh-windows called');
       try {
+        // Record user activity for adaptive polling
+        this.recordUserActivity('refresh-windows');
+
         await this.refreshAndSort();
         return this.dofusWindows;
       } catch (error) {

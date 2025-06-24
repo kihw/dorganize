@@ -78,5 +78,18 @@
   "classes_eliotrope": "Eliotrope",
   "classes_huppermage": "Huppermage",
   "classes_ouginak": "Ouginak",
-  "classes_forgelance": "Forgelance"
+  "classes_forgelance": "Forgelance",
+  "error_title": "Dorganize Error",
+  "error_occurred": "An error occurred in {0}",
+  "error_report_button": "Report Issue",
+  "error_ok_button": "OK",
+  "error_restart_button": "Restart",
+  "error_close_button": "Close",
+  "error_fatal": "Dorganize has encountered a critical error and needs to restart.",
+  "error_file_not_found": "File not found: {0}",
+  "error_permission_denied": "Permission denied: {0}",
+  "error_invalid_format": "Invalid format in file: {0}",
+  "error_connection_failed": "Connection failed: {0}",
+  "error_operation_timeout": "Operation timed out: {0}",
+  "error_unknown": "An unknown error occurred: {0}"
 }
