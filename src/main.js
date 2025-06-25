@@ -69,15 +69,17 @@ class Dorganize {
   }
 
   async onReady() {
-    console.log('Dorganize: App ready, setting up...');
-
-    // Load settings first
+    console.log('Dorganize: App ready, setting up...');    // Load settings first
     this.loadSettings();
 
-    // Migrate from old electron-store format
-    const migratedCount = this.shortcutConfig.migrateFromElectronStore(this.store);
-    if (migratedCount > 0) {
-      console.log(`Dorganize: Migrated ${migratedCount} shortcuts from electron-store`);
+    // Migrate from old electron-store format if the method exists
+    if (this.shortcutConfig && typeof this.shortcutConfig.migrateFromElectronStore === 'function') {
+      const migratedCount = this.shortcutConfig.migrateFromElectronStore(this.store);
+      if (migratedCount > 0) {
+        console.log(`Dorganize: Migrated ${migratedCount} shortcuts from electron-store`);
+      }
+    } else {
+      console.log('Dorganize: Shortcut migration skipped (migrateFromElectronStore not available)');
     }
 
     // Create tray
@@ -195,8 +197,8 @@ class Dorganize {
         nodeIntegration: true,
         contextIsolation: false
       },
-      show: false,
-      frame: false, // Pour utiliser la custom title bar
+      show: true,
+      frame: true,
       titleBarStyle: 'hidden'
     });
 
@@ -541,9 +543,19 @@ class Dorganize {
       // Unregister existing global shortcuts
       this.unregisterGlobalShortcuts();
 
-      if (!this.shortcutsEnabled) {
-        // Only register toggle shortcut when shortcuts are disabled
-        const toggleShortcut = this.shortcutConfig.getGlobalShortcut('toggleShortcuts');
+      if (!this.shortcutsEnabled) {      // Only register toggle shortcut when shortcuts are disabled
+        let toggleShortcut;
+
+        // Try to get from shortcutConfig if the method exists
+        if (this.shortcutConfig && typeof this.shortcutConfig.getGlobalShortcut === 'function') {
+          toggleShortcut = this.shortcutConfig.getGlobalShortcut('toggleShortcuts');
+        }
+        // Fallback to store
+        else {
+          const shortcuts = this.store.get('shortcuts', {});
+          toggleShortcut = shortcuts.toggleShortcuts;
+        }
+
         if (toggleShortcut) {
           const accelerator = this.shortcutManager.convertShortcutToAccelerator(toggleShortcut);
           if (accelerator) {
@@ -1071,14 +1083,28 @@ class Dorganize {
     // Update the tray icon after loading settings
     if (this.tray) {
       this.updateTrayIcon();
-    }
-
-    // Set default global shortcuts if not set in config file
-    if (!this.shortcutConfig.getGlobalShortcut('nextWindow')) {
-      this.shortcutConfig.setGlobalShortcut('nextWindow', 'Ctrl+Tab');
-    }
-    if (!this.shortcutConfig.getGlobalShortcut('toggleShortcuts')) {
-      this.shortcutConfig.setGlobalShortcut('toggleShortcuts', 'Ctrl+Shift+D');
+    }    // Set default global shortcuts if shortcutConfig supports it
+    if (this.shortcutConfig && typeof this.shortcutConfig.getGlobalShortcut === 'function') {
+      // Use the shortcutConfig if it has the required methods
+      if (!this.shortcutConfig.getGlobalShortcut('nextWindow')) {
+        this.shortcutConfig.setGlobalShortcut('nextWindow', 'Ctrl+Tab');
+      }
+      if (!this.shortcutConfig.getGlobalShortcut('toggleShortcuts')) {
+        this.shortcutConfig.setGlobalShortcut('toggleShortcuts', 'Ctrl+Shift+D');
+      }
+    } else {
+      // Use the store as a fallback
+      console.log('Dorganize: Using store for shortcuts (shortcutConfig not configured properly)');
+      // Make sure default shortcuts are set
+      const shortcuts = this.store.get('shortcuts', {});
+      if (!shortcuts.nextWindow) {
+        shortcuts.nextWindow = 'Ctrl+Tab';
+        this.store.set('shortcuts', shortcuts);
+      }
+      if (!shortcuts.toggleShortcuts) {
+        shortcuts.toggleShortcuts = 'Ctrl+Shift+D';
+        this.store.set('shortcuts', shortcuts);
+      }
     }
 
     // Register global shortcuts FIRST

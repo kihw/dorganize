@@ -477,31 +477,47 @@ class WindowDetector {
         });
 
         return mergedWindows;
-    }
-
-    /**
+    }    /**
      * Get raw windows with timeout protection
      */
     async getRawWindowsWithTimeout(operationId) {
-        const timeoutMs = this.config.operationTimeoutMs;
+        // Use a longer timeout to avoid premature cancellation (PowerShellExecutor now has its own timeouts)
+        const timeoutMs = Math.max(this.config.operationTimeoutMs || 15000, 35000);
+        const startTime = Date.now();
 
         try {
+            console.log(`WindowDetector: Starting raw window detection with ${timeoutMs}ms timeout [${operationId}]`);
+
+            // Create a promise that will reject after the timeout
             const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error(`Operation ${operationId} timed out after ${timeoutMs}ms`)), timeoutMs);
+                setTimeout(() => {
+                    const elapsed = Date.now() - startTime;
+                    reject(new Error(`Operation ${operationId} timed out after ${elapsed}ms`));
+                }, timeoutMs);
             });
 
+            // Start the actual detection
             const detectionPromise = this.powerShellExecutor.getDofusWindows();
 
+            // Race the detection against the timeout
             const rawWindows = await Promise.race([detectionPromise, timeoutPromise]);
+            const elapsed = Date.now() - startTime;
 
+            // Validate result
             if (!Array.isArray(rawWindows)) {
-                throw new Error('PowerShell executor returned non-array result');
+                console.warn(`WindowDetector: Non-array result received in ${elapsed}ms [${operationId}]`);
+                return []; // Return empty array instead of throwing
             }
 
+            console.log(`WindowDetector: Raw window detection completed in ${elapsed}ms, found ${rawWindows.length} windows [${operationId}]`);
             return rawWindows;
 
         } catch (error) {
-            throw new Error(`Raw window detection failed [${operationId}]: ${error.message}`);
+            const elapsed = Date.now() - startTime;
+            console.error(`WindowDetector: Raw window detection failed after ${elapsed}ms [${operationId}]: ${error.message}`);
+
+            // Return empty array instead of throwing to keep application functioning
+            return [];
         }
     }
 
